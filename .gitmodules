@@ -1,0 +1,3 @@
+[submodule "ips-uwb-server"]
+	path = ips-uwb-server
+	url = https://huggingface.co/spaces/leonaskratos/ips-uwb-server
