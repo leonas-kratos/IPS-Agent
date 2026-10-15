@@ -219,8 +219,8 @@ def run_interactive_cli(agent: UWBAgent):
             with console.status("[bold cyan]🧠 Đang tra cứu tài liệu UWB & sinh phản hồi...[/bold cyan]", spinner="dots"):
                 stream_gen, retrieved_docs = agent.answer_question_stream(user_input)
             
-            # Hiển thị tài liệu trích dẫn
-            if retrieved_docs:
+            # Hiển thị tài liệu trích dẫn (chỉ khi người dùng chủ động bật --rag)
+            if retrieved_docs and agent.use_rag:
                 print_sources(retrieved_docs)
 
             # Stream câu trả lời

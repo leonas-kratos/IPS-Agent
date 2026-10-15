@@ -212,65 +212,63 @@ class UWBAgent:
     def answer_question_stream(self, question: str) -> tuple[Generator[str, None, None], List[Dict[str, Any]]]:
         """
         Phản hồi câu hỏi dạng stream.
-        - Với câu hỏi chào hỏi/xã giao: Phản hồi tự nhiên, thân thiện.
-        - Với câu hỏi kỹ thuật/giải thuật/phần cứng: Sử dụng toàn bộ tri thức nén của repo trong mô hình.
-        - Với câu hỏi tra cứu bài báo: Tra cứu chính xác và cung cấp ngữ cảnh bài báo thực tế.
+        - Mặc định (use_rag=False): Chạy thuần PURE LLM 100%, KHÔNG RAG, KHÔNG chèn tài liệu vụn vặt,
+          mô hình tự do sử dụng toàn bộ tri thức của repo đã nạp sẵn trong weights và system prompt.
+        - Nếu bật RAG (use_rag=True qua cờ --rag): Mới kích hoạt tra cứu tài liệu động.
         """
         self.history.append({"role": "user", "content": question})
         sources = []
 
-        # 1. Nếu là câu chào hỏi / xã giao (có dấu hoặc không dấu)
-        if self.is_casual_intent(question):
-            self.current_context_papers = []
-            augmented_messages = self.history[-4:]
+        # 1. Chế độ MẶC ĐỊNH: PURE LLM 100% (HOÀN TOÀN TẮT RAG)
+        if not self.use_rag:
+            augmented_messages = self.history[-6:]
 
-        # 2. Nếu là câu hỏi tiếp nối mạch bài báo trước đó
-        elif self.is_followup_query(question) and self.current_context_papers:
-            papers_context = "### CÁC BÀI BÁO ĐANG THẢO LUẬN TRONG PHIÊN:\n"
-            for idx, p in enumerate(self.current_context_papers, 1):
-                papers_context += (
-                    f"{idx}. **{p['title']}** ({p.get('year', '2024')})\n"
-                    f"   - Tệp PDF: `{p['filename']}`\n"
-                    f"   - Trường phái: {p.get('category', 'UWB')}\n"
-                    f"   - Phương pháp: {p.get('method', 'N/A')}\n"
-                    f"   - Sai số / Hiệu năng: {p.get('best_metric', 'N/A')}\n\n"
-                )
-            prompt_content = (
-                f"{papers_context}\n"
-                f"CÂU HỎI TIẾP NỐI: \"{question}\"\n\n"
-                f"Hãy trả lời trực tiếp cho các bài báo đang thảo luận ở trên, phân tích chi tiết và duy trì mạch ngữ cảnh."
-            )
-            augmented_messages = self.history[-3:-1] + [{"role": "user", "content": prompt_content}]
-
-        # 3. Nếu là câu hỏi tra cứu tài liệu / bài báo khoa học cụ thể
-        elif self.is_explicit_paper_query(question):
-            matched_papers = self.find_relevant_repo_papers(question, top_k=5)
-            if matched_papers:
-                self.current_context_papers = matched_papers
-                papers_context = f"### CÁC BÀI BÁO LIÊN QUAN TRONG KHO REPO (Paper/) [{len(matched_papers)} bài]:\n"
-                for idx, p in enumerate(matched_papers, 1):
+        # 2. Chế độ RAG (Chỉ kích hoạt khi người dùng chạy cờ --rag)
+        else:
+            if self.is_casual_intent(question):
+                self.current_context_papers = []
+                augmented_messages = self.history[-4:]
+            elif self.is_followup_query(question) and self.current_context_papers:
+                papers_context = "### CÁC BÀI BÁO ĐANG THẢO LUẬN TRONG PHIÊN:\n"
+                for idx, p in enumerate(self.current_context_papers, 1):
                     papers_context += (
                         f"{idx}. **{p['title']}** ({p.get('year', '2024')})\n"
                         f"   - Tệp PDF: `{p['filename']}`\n"
                         f"   - Trường phái: {p.get('category', 'UWB')}\n"
-                        f"   - Phương pháp cốt lõi: {p.get('method', 'N/A')}\n"
-                        f"   - Hiệu năng định lượng: {p.get('best_metric', 'N/A')}\n\n"
+                        f"   - Phương pháp: {p.get('method', 'N/A')}\n"
+                        f"   - Sai số / Hiệu năng: {p.get('best_metric', 'N/A')}\n\n"
                     )
-                    sources.append({"source_type": "repo_paper", "filename": p["filename"]})
-
                 prompt_content = (
                     f"{papers_context}\n"
-                    f"YÊU CẦU CỦA NGƯỜI DÙNG: \"{question}\"\n\n"
-                    f"Hãy trả lời yêu cầu của người dùng một cách rõ ràng, trích dẫn chính xác bài báo và số liệu từ danh sách trên."
+                    f"CÂU HỎI TIẾP NỐI: \"{question}\"\n\n"
+                    f"Hãy trả lời trực tiếp cho các bài báo đang thảo luận ở trên, phân tích chi tiết và duy trì mạch ngữ cảnh."
                 )
                 augmented_messages = self.history[-3:-1] + [{"role": "user", "content": prompt_content}]
+            elif self.is_explicit_paper_query(question):
+                matched_papers = self.find_relevant_repo_papers(question, top_k=5)
+                if matched_papers:
+                    self.current_context_papers = matched_papers
+                    papers_context = f"### CÁC BÀI BÁO LIÊN QUAN TRONG KHO REPO (Paper/) [{len(matched_papers)} bài]:\n"
+                    for idx, p in enumerate(matched_papers, 1):
+                        papers_context += (
+                            f"{idx}. **{p['title']}** ({p.get('year', '2024')})\n"
+                            f"   - Tệp PDF: `{p['filename']}`\n"
+                            f"   - Trường phái: {p.get('category', 'UWB')}\n"
+                            f"   - Phương pháp cốt lõi: {p.get('method', 'N/A')}\n"
+                            f"   - Hiệu năng định lượng: {p.get('best_metric', 'N/A')}\n\n"
+                        )
+                        sources.append({"source_type": "repo_paper", "filename": p["filename"]})
+
+                    prompt_content = (
+                        f"{papers_context}\n"
+                        f"YÊU CẦU CỦA NGƯỜI DÙNG: \"{question}\"\n\n"
+                        f"Hãy trả lời yêu cầu của người dùng một cách rõ ràng, trích dẫn chính xác bài báo và số liệu từ danh sách trên."
+                    )
+                    augmented_messages = self.history[-3:-1] + [{"role": "user", "content": prompt_content}]
+                else:
+                    augmented_messages = self.history[-4:]
             else:
                 augmented_messages = self.history[-4:]
-
-        # 4. Các câu hỏi kỹ thuật, toán học, mã nguồn, phần cứng thông thường
-        else:
-            # Cho phép mô hình sử dụng toàn bộ tri thức của nó một cách tự do
-            augmented_messages = self.history[-4:]
 
         raw_generator = self.llm.chat_stream(self.system_prompt, augmented_messages)
 
