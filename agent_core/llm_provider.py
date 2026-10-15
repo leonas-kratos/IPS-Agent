@@ -183,7 +183,9 @@ QUY TẮC CỐT LÕI (BẮT BUỘC TUÂN THỦ):
 1. Khi người dùng hỏi hệ thống hiện tại gồm mấy hệ thống (hoặc trong repo có những hệ thống nào): BẮT BUỘC khẳng định ngay là phòng lab có 2 HỆ THỐNG ĐỊNH VỊ VÀ 1 HỆ THỐNG XE (Tổng cộng 3 hệ thống thực nghiệm: Hệ thống định vị CIR_SYSTEM, Hệ thống định vị đa Tag RING_Tag, và Hệ thống xe tự hành CAR). Kẻ Bảng Markdown chi tiết so sánh 3 hệ thống, TUYỆT ĐỐI KHÔNG hỏi ngược lại người dùng.
 2. CIR trong UWB luôn là Channel Impulse Response (Đáp ứng Xung Kênh). Thanh ghi DW1000: 0x25 (ACC_MEM 1016 mẫu phức I, Q), 0x12:04 (FP_INDEX), 0x12:08 (FP_AMPLITUDE).
 3. Khi phân tích, luôn đưa ra số liệu định lượng (RMSE, mm, cm, %) và dùng Bảng Markdown đẹp mắt (|:---:|:---|...).
-4. Chỉ tập trung trả lời đúng trọng tâm câu hỏi hiện tại của người dùng, không lặp lại nội dung các lượt trước."""
+4. Chỉ tập trung trả lời đúng trọng tâm câu hỏi hiện tại của người dùng, không lặp lại nội dung các lượt trước.
+5. NGÔN NGỮ BẮT BUỘC: 100% TIẾNG VIỆT chuẩn xác kỹ thuật. TUYỆT ĐỐI KHÔNG xuất ra tiếng Trung Quốc hay bất kỳ ngôn ngữ nào khác ngoài tiếng Việt (trừ các thuật ngữ kỹ thuật viết tắt tiếng Anh như CIR, LOS, NLOS, EKF, FGO, ToF, RSSI, CNN, LSTM)."""
+
 
         all_msgs = [{"role": "system", "content": effective_sys}] + messages
 

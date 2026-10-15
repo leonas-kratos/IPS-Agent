@@ -78,8 +78,27 @@ class UWBAgent:
                 pass
         return []
 
+    def is_identity_query(self, query: str) -> bool:
+        """Kiểm tra câu hỏi về danh tính, tên gọi hoặc loại model."""
+        q_norm = remove_accents(query.lower().strip())
+        identity_triggers = [
+            "ban la model gi", "ban la mo hinh gi", "ban la ai", "ten ban la gi",
+            "model gi", "mo hinh gi", "ai tao ra ban", "ban la con gi", "ban ten gi",
+            "ban duoc huan luyen", "ban duoc train"
+        ]
+        return any(t in q_norm for t in identity_triggers)
+
+    def is_journal_list_query(self, query: str) -> bool:
+        """Kiểm tra câu hỏi yêu cầu danh sách các tạp chí / nhà xuất bản khoa học."""
+        q_norm = remove_accents(query.lower().strip())
+        journal_triggers = [
+            "tap chi", "journal", "nha xuat ban", "publisher", "danh sach tap chi",
+            "co nhung tap chi nao", "tap chi nao", "hoi nghi", "conference"
+        ]
+        return any(t in q_norm for t in journal_triggers)
+
     def is_casual_intent(self, query: str) -> bool:
-        """Nhận diện các câu chào hỏi, cảm ơn, xã giao (hỗ trợ cả tiếng Việt có dấu và không dấu)."""
+        """Nhận diện các câu chào hỏi, cảm thán, cảm ơn, xã giao (hỗ trợ cả tiếng Việt có dấu và không dấu)."""
         q_raw = query.lower().strip()
         q_norm = remove_accents(q_raw)
 
@@ -88,15 +107,18 @@ class UWBAgent:
             "bai bao", "paper", "nghien cuu", "tai lieu", "uwb", "cir", "ekf", "fgo",
             "dinh vi", "nlos", "los", "anchor", "tag", "dwm1001", "dw1000", "toa do",
             "sai so", "rmse", "thanh ghi", "kalman", "lse", "fusion", "imu", "gdop",
-            "twr", "ds-twr", "ss-twr", "car", "raspberry", "pi", "baud"
+            "twr", "ds-twr", "ss-twr", "car", "raspberry", "pi", "baud", "tap chi", "journal"
         ]
         if any(k in q_norm for k in tech_words):
             return False
 
         casual_phrases = [
             "xin chao", "chao", "chao ban", "hi", "hello", "helo", "alo", "e",
-            "ban la ai", "ai the", "cam on", "thank", "thanks", "tam biet", "bye",
-            "ok", "oke", "duoc roi", "tot roi", "hay qua", "gioi qua", "giup toi", "help"
+            "cam on", "thank", "thanks", "tam biet", "bye",
+            "ok", "oke", "duoc roi", "tot roi", "hay qua", "gioi qua", "giup toi", "help",
+            "ghe", "ghe vay", "kinh", "kinh the", "kinh vay", "vai", "uay", "wow",
+            "the a", "the ha", "vay a", "vay ha", "u", "uh", "um", "da", "ngon", "hay",
+            "tot", "tuyet", "dinh", "dinh the", "dinh vay", "xin the", "xin vay"
         ]
         words = q_norm.split()
         if len(words) <= 4:
@@ -110,9 +132,13 @@ class UWBAgent:
         paper_triggers = [
             "bai bao", "paper", "nghien cuu", "tai lieu", "cong bo", "tac gia",
             "tim bai", "danh sach bai", "co bai nao", "liet ke cac bai", "so sanh cac bai",
-            "ourpapers", "nckh", "atc", "jec", "rev", "doc bai", "kho bai bao"
+            "ourpapers", "nckh", "atc", "jec", "rev", "doc bai", "kho bai bao",
+            "tap chi", "journal", "hoi nghi", "conference", "xuat ban",
+            "phan loai", "nhan dang", "machine learning", "deep learning", "ai/ml",
+            "co paper nao", "co bai nao lam ve", "nhung paper nao"
         ]
         return any(t in q_norm for t in paper_triggers)
+
 
     def find_relevant_repo_papers(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """
@@ -212,77 +238,140 @@ class UWBAgent:
     def answer_question_stream(self, question: str) -> tuple[Generator[str, None, None], List[Dict[str, Any]]]:
         """
         Phản hồi câu hỏi dạng stream.
-        - Mặc định (use_rag=False): Chạy thuần PURE LLM 100%, KHÔNG RAG, KHÔNG chèn tài liệu vụn vặt,
-          mô hình tự do sử dụng toàn bộ tri thức của repo đã nạp sẵn trong weights và system prompt.
-        - Nếu bật RAG (use_rag=True qua cờ --rag): Mới kích hoạt tra cứu tài liệu động.
+        Tự động nhận diện ý định (danh tính, tạp chí, tìm kiếm bài báo khoa học, câu hỏi tiếp nối, hoặc trò chuyện).
         """
         self.history.append({"role": "user", "content": question})
         sources = []
 
-        # 1. Chế độ MẶC ĐỊNH: PURE LLM 100% (HOÀN TOÀN TẮT RAG)
-        if not self.use_rag:
-            augmented_messages = self.history[-6:]
+        # 0. Câu hỏi về danh tính / Model
+        if self.is_identity_query(question):
+            identity_text = (
+                "Tôi là **IPS-Agent** — Trợ lý AI Kỹ sư Nghiên cứu Cấp cao & Kiến trúc sư Hệ thống Định vị Trong nhà (Indoor Positioning System - IPS) UWB của phòng lab.\n\n"
+                "Tôi vận hành trên mô hình cục bộ chuyên biệt `ips-uwb` (được tối ưu hóa chuyên sâu trên nền tảng Qwen 2.5 3B), sở hữu toàn bộ tri thức thực nghiệm về:\n"
+                "1. **2 Hệ Thống Định Vị UWB**:\n"
+                "   • *Hệ thống Định Vị 1:* Định vị TDMA & Trích xuất CIR (`System/CIR_SYSTEM/`).\n"
+                "   • *Hệ thống Định Vị 2:* Mạng Định Vị Đa Tag Vòng Token Ring (`System/RING_Tag/`).\n"
+                "2. **1 Hệ Thống Xe Tự Hành**:\n"
+                "   • *Hệ thống Xe:* Xe Tự Hành Robot AGV (`System/CAR/`) tích hợp STM32, Raspberry Pi 4 và DWM1001C Tag.\n"
+                "3. **Kho 48 Bài Báo Khoa Học UWB**: Bao gồm các công trình nghiên cứu hàng đầu về tín hiệu CIR, Deep Learning nhận dạng NLOS, bộ lọc Kalman thích nghi (EKF/UKF) và Tối ưu đồ thị nhân tố (FGO).\n\n"
+                "Bạn có thể yêu cầu tôi tìm kiếm bài báo theo chủ đề, phân tích giải thuật toán học hoặc hướng dẫn mã nguồn thực tế bất cứ lúc nào!"
+            )
+            def identity_stream():
+                for word in identity_text.split(" "):
+                    yield word + " "
+            self.history.append({"role": "assistant", "content": identity_text})
+            return identity_stream(), []
 
-        # 2. Chế độ RAG (Chỉ kích hoạt khi người dùng chạy cờ --rag)
-        else:
-            if self.is_casual_intent(question):
-                self.current_context_papers = []
-                augmented_messages = self.history[-4:]
-            elif self.is_followup_query(question) and self.current_context_papers:
-                papers_context = "### CÁC BÀI BÁO ĐANG THẢO LUẬN TRONG PHIÊN:\n"
-                for idx, p in enumerate(self.current_context_papers, 1):
+        # 1. Câu hỏi tra cứu danh sách tạp chí / kỷ yếu hội nghị
+        if self.is_journal_list_query(question):
+            journals_context = (
+                "### CÁC TẠP CHÍ & KỶ YẾU HỘI NGHỊ KHOA HỌC TRONG KHO TRI THỨC PHÒNG LAB (48 BÀI BÁO REPO):\n"
+                "1. **IEEE Xplore (Các tạp chí chuyên ngành quốc tế hàng đầu):**\n"
+                "   • *IEEE Sensors Journal* (Các bài về phân loại NLOS, CIR, GAF-CNN, Deep Learning).\n"
+                "   • *IEEE Transactions on Instrumentation and Measurement (TIM)* (Các bài về ước lượng sai số cự ly, EKF thích nghi, mô hình sai số).\n"
+                "   • *IEEE Transactions on Vehicular Technology (TVT)* (Các bài về định vị xe tự hành AGV, hợp nhất UWB/LiDAR/INS).\n"
+                "   • *IEEE Internet of Things Journal (IoT-J)* (Các bài về mạng đa Tag, kiến trúc cảm biến IoT UWB).\n"
+                "   • *IEEE Communications Letters*.\n"
+                "2. **MDPI Open Access Journals (Nhóm tạp chí mở uy tín):**\n"
+                "   • *MDPI Sensors* (Rất nhiều công trình về CIR, Fuzzy Decision Tree, Meta-Learning, SimCLR-CIR).\n"
+                "   • *MDPI Electronics* (Xử lý tín hiệu phần cứng DWM1001, lọc Kalman).\n"
+                "   • *MDPI Applied Sciences*.\n"
+                "3. **Elsevier & ScienceDirect:**\n"
+                "   • *Measurement* (Elsevier), *Physical Communication*.\n"
+                "4. **Tạp chí & Kỷ yếu Hội nghị Quốc gia / Phòng Lab (OurPapers):**\n"
+                "   • *REV Journal on Electronics and Communications (REV-EC / JEC)*.\n"
+                "   • *IEEE International Conference on Advanced Technologies for Communications (ATC)*.\n"
+                "   • *Hội nghị Nghiên cứu Khoa học (NCKH 2026)*."
+            )
+            prompt_content = (
+                f"{journals_context}\n\n"
+                f"YÊU CẦU CỦA NGƯỜI DÙNG: \"{question}\"\n\n"
+                f"HƯỚNG DẪN TRẢ LỜI:\n"
+                f"1. Liệt kê danh sách các tạp chí và hội nghị khoa học uy tín có trong kho tri thức của phòng lab.\n"
+                f"2. BẮT BUỘC kẻ Bảng Markdown chỉn chu (Tạp chí / Hội nghị | Nhà xuất bản | Lĩnh vực trọng tâm trong repo | Bài báo tiêu biểu trong repo).\n"
+                f"3. Khẳng định kho tri thức của lab sở hữu đầy đủ 48 bài báo từ các nguồn tạp chí trên."
+            )
+            augmented_messages = self.history[-3:-1] + [{"role": "user", "content": prompt_content}]
+
+        # 2. Câu hỏi tìm kiếm bài báo / nghiên cứu / phân loại AI-ML / EKF
+        elif self.is_explicit_paper_query(question):
+            matched_papers = self.find_relevant_repo_papers(question, top_k=6)
+            if matched_papers:
+                self.current_context_papers = matched_papers
+                papers_context = f"### CÁC BÀI BÁO PHÙ HỢP TRONG KHO REPO (Paper/) [{len(matched_papers)} bài]:\n"
+                for idx, p in enumerate(matched_papers, 1):
                     papers_context += (
                         f"{idx}. **{p['title']}** ({p.get('year', '2024')})\n"
                         f"   - Tệp PDF: `{p['filename']}`\n"
                         f"   - Trường phái: {p.get('category', 'UWB')}\n"
-                        f"   - Phương pháp: {p.get('method', 'N/A')}\n"
-                        f"   - Sai số / Hiệu năng: {p.get('best_metric', 'N/A')}\n\n"
+                        f"   - Phương pháp cốt lõi: {p.get('method', 'N/A')}\n"
+                        f"   - Hiệu năng định lượng: {p.get('best_metric', 'N/A')}\n\n"
                     )
+                    sources.append({"source_type": "repo_paper", "filename": p["filename"]})
+
                 prompt_content = (
                     f"{papers_context}\n"
-                    f"CÂU HỎI TIẾP NỐI: \"{question}\"\n\n"
-                    f"Hãy trả lời trực tiếp cho các bài báo đang thảo luận ở trên, phân tích chi tiết và duy trì mạch ngữ cảnh."
+                    f"CÂU HỎI CỦA NGƯỜI DÙNG: \"{question}\"\n\n"
+                    f"HƯỚNG DẪN TRẢ LỜI (BẮT BUỘC TUÂN THỦ):\n"
+                    f"1. Trả lời trực tiếp câu hỏi dựa trên các bài báo cụ thể trong danh sách trên.\n"
+                    f"2. BẮT BUỘC kẻ Bảng Markdown so sánh các bài báo (STT | Tên bài báo | Năm | Phương pháp AI/ML hoặc Thuật toán | Hiệu năng / Độ chính xác | Tệp PDF).\n"
+                    f"3. Nêu rõ ưu nhược điểm kỹ thuật và số liệu định lượng (RMSE, %, cm) của từng bài.\n"
+                    f"4. TUYỆT ĐỐI KHÔNG bảo người dùng tự đi tìm trên IEEE hay Google Scholar!"
                 )
                 augmented_messages = self.history[-3:-1] + [{"role": "user", "content": prompt_content}]
-            elif self.is_explicit_paper_query(question):
-                matched_papers = self.find_relevant_repo_papers(question, top_k=5)
-                if matched_papers:
-                    self.current_context_papers = matched_papers
-                    papers_context = f"### CÁC BÀI BÁO LIÊN QUAN TRONG KHO REPO (Paper/) [{len(matched_papers)} bài]:\n"
-                    for idx, p in enumerate(matched_papers, 1):
-                        papers_context += (
-                            f"{idx}. **{p['title']}** ({p.get('year', '2024')})\n"
-                            f"   - Tệp PDF: `{p['filename']}`\n"
-                            f"   - Trường phái: {p.get('category', 'UWB')}\n"
-                            f"   - Phương pháp cốt lõi: {p.get('method', 'N/A')}\n"
-                            f"   - Hiệu năng định lượng: {p.get('best_metric', 'N/A')}\n\n"
-                        )
-                        sources.append({"source_type": "repo_paper", "filename": p["filename"]})
-
-                    prompt_content = (
-                        f"{papers_context}\n"
-                        f"YÊU CẦU CỦA NGƯỜI DÙNG: \"{question}\"\n\n"
-                        f"Hãy trả lời yêu cầu của người dùng một cách rõ ràng, trích dẫn chính xác bài báo và số liệu từ danh sách trên."
-                    )
-                    augmented_messages = self.history[-3:-1] + [{"role": "user", "content": prompt_content}]
-                else:
-                    augmented_messages = self.history[-4:]
             else:
                 augmented_messages = self.history[-4:]
 
+        # 3. Câu hỏi tiếp nối trong mạch bài báo
+        elif self.is_followup_query(question) and self.current_context_papers:
+            papers_context = "### CÁC BÀI BÁO ĐANG THẢO LUẬN TRONG PHIÊN:\n"
+            for idx, p in enumerate(self.current_context_papers, 1):
+                papers_context += (
+                    f"{idx}. **{p['title']}** ({p.get('year', '2024')})\n"
+                    f"   - Tệp PDF: `{p['filename']}`\n"
+                    f"   - Trường phái: {p.get('category', 'UWB')}\n"
+                    f"   - Phương pháp: {p.get('method', 'N/A')}\n"
+                    f"   - Sai số / Hiệu năng: {p.get('best_metric', 'N/A')}\n\n"
+                )
+            prompt_content = (
+                f"{papers_context}\n"
+                f"CÂU HỎI TIẾP NỐI: \"{question}\"\n\n"
+                f"Hãy trả lời trực tiếp cho các bài báo đang thảo luận ở trên, phân tích chi tiết và duy trì mạch ngữ cảnh."
+            )
+            augmented_messages = self.history[-3:-1] + [{"role": "user", "content": prompt_content}]
+
+        # 4. Câu chào hỏi, cảm thán, xã giao
+        elif self.is_casual_intent(question):
+            self.current_context_papers = []
+            casual_prompt = (
+                f"Người dùng vừa gửi câu chào hoặc biểu cảm: \"{question}\".\n"
+                f"Hãy phản hồi bằng tiếng Việt tự nhiên, thân thiện, lịch sự và tự tin với tư cách Kỹ sư Nghiên cứu Cấp cao IPS UWB. "
+                f"Nhắc ngắn gọn rằng bạn sẵn sàng hỗ trợ giải đáp chuyên sâu về 2 hệ thống định vị (CIR_SYSTEM, RING_Tag), hệ thống xe CAR hoặc 48 bài báo trong lab."
+            )
+            augmented_messages = self.history[-3:-1] + [{"role": "user", "content": casual_prompt}]
+
+        # 5. Các câu hỏi kỹ thuật thông thường khác
+        else:
+            augmented_messages = self.history[-4:]
+
         raw_generator = self.llm.chat_stream(self.system_prompt, augmented_messages)
+
 
         def stream_wrapper():
             full_reply = []
             try:
                 for chunk in raw_generator:
-                    full_reply.append(chunk)
-                    yield chunk
+                    # Loại bỏ triệt để ký tự tiếng Trung nếu mô hình Qwen sinh nhầm
+                    clean_chunk = re.sub(r'[\u4e00-\u9fff]', '', chunk)
+                    if clean_chunk:
+                        full_reply.append(clean_chunk)
+                        yield clean_chunk
             except GeneratorExit:
                 pass
             finally:
                 if full_reply:
                     complete_text = "".join(full_reply)
+
                     clean_text = re.sub(r'\[([^\]]+)\]\(https?://[^\)]+\)', r'\1', complete_text)
                     clean_text = re.sub(r'https?://[^\s\)]+', '', clean_text)
                     self.history.append({"role": "assistant", "content": clean_text})
