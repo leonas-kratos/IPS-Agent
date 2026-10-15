@@ -41,7 +41,13 @@ Khi người dùng hỏi *"Hệ thống hiện tại của tôi gồm mấy hệ
 
 ### 3. Hệ Thống Xe: Xe Tự Hành Robot AGV (`System/CAR/`)
 * **Bản chất & Mục tiêu:** Hệ thống xe robot AGV tự hành phục vụ nghiên cứu bám quỹ đạo và định vị động cơ động cao.
-* **Kiến trúc phần cứng:** Robot AGV vi điều khiển STM32 kết nối với máy tính nhúng Raspberry Pi 4 và module UWB Tag Decawave DWM1001C, giao tiếp với bộ 4 Anchor cố định (`A0`–`A3`).
+* **Kiến trúc phần cứng & Cảm biến trên xe:**
+  * **Cảm biến bản thể trên xe (Onboard Sensors):** Xe CHỈ CÓ DUY NHẤT 2 loại cảm biến:
+    1. *Cảm biến quán tính IMU:* Đọc bản tin `$IMU,ax,ay,az,gx,gy,gz` từ STM32 qua `/dev/ttyACM0` (115200 bps), cung cấp góc hướng chuyển động (Yaw `robot_deg`) cho pha Prediction của EKF/FGO.
+    2. *Cảm biến đo góc quay bánh xe Encoder:* Đo xung bánh xe tính vận tốc di chuyển `robot_v` và quãng đường vi sai Odometry (Dead Reckoning).
+  * **Lưu ý phần cứng vô tuyến & trạm mốc:**
+    * *Module UWB Tag Decawave DWM1001C:* Gắn trên xe, kết nối Raspberry Pi 4 qua `/dev/ttyACM1` (921600 bps), là thiết bị thu phát sóng vô tuyến RF (Transceiver) đọc ToF và 59 trường CIR, **KHÔNG PHẢI cảm biến bản thể**.
+    * *Bộ 4 Anchor cố định (`A0`–`A3`):* Các trạm mốc cố định gắn trên tường phòng lab (Fixed Base Stations), **KHÔNG PHẢI cảm biến trên xe**.
 * **Cổng Serial:**
   * `/dev/ttyACM1` (Baudrate **921600** bps - `DEFAULT_CIR_BAUD`): Đọc bản tin CIR 59 trường dữ liệu tốc độ cao.
   * `/dev/ttyACM0` (Baudrate **115200** bps - `DEFAULT_ROBOT_BAUD`): Giao tiếp STM32 nhận dữ liệu cảm biến `$IMU,ax,ay,az,gx,gy,gz` và Odom bánh xe.

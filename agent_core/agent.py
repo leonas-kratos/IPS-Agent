@@ -97,6 +97,36 @@ class UWBAgent:
         ]
         return any(t in q_norm for t in journal_triggers)
 
+    def is_systems_count_query(self, query: str) -> bool:
+        """Kiểm tra câu hỏi về số lượng hệ thống thực nghiệm trong repo (2 hệ thống định vị & 1 hệ thống xe)."""
+        q_norm = remove_accents(query.lower().strip())
+        system_triggers = [
+            "gom may he thong", "co may he thong", "may he thong", "bao nhieu he thong",
+            "he thong hien tai", "cac he thong trong repo", "co nhung he thong nao",
+            "nhung he thong nao", "2 he thong dinh vi", "1 he thong xe", "2 he thong dinh vi va 1 he thong xe",
+            "dau 2 he thong", "he thong gi trong repo"
+        ]
+        return any(t in q_norm for t in system_triggers)
+
+    def is_car_sensors_query(self, query: str) -> bool:
+        """Kiểm tra câu hỏi hoặc nhắc nhở về các cảm biến trên xe tự hành CAR."""
+        q_norm = remove_accents(query.lower().strip())
+        if any(p in q_norm for p in [
+            "xe chi co imu", "chi co imu va encoder", "xe chi co 2 cam bien",
+            "ghi nho, xe chi co", "ghi nho xe chi co", "xe chi co imu va encoder thoi"
+        ]):
+            return True
+        has_sensor = any(s in q_norm for s in ["cam bien", "sensor", "sensors"])
+        has_car = any(c in q_norm for c in ["xe", "car", "robot", "agv"])
+        if has_sensor and has_car:
+            return True
+        if any(p in q_norm for p in [
+            "cam bien tren xe", "cam bien cua xe", "xe co cam bien gi",
+            "xe co nhung cam bien nao", "xe tu hanh co cam bien gi", "tren xe co cam bien gi"
+        ]):
+            return True
+        return False
+
     def is_casual_intent(self, query: str) -> bool:
         """Nhận diện các câu chào hỏi, cảm thán, cảm ơn, xã giao (hỗ trợ cả tiếng Việt có dấu và không dấu)."""
         q_raw = query.lower().strip()
@@ -252,7 +282,7 @@ class UWBAgent:
                 "   • *Hệ thống Định Vị 1:* Định vị TDMA & Trích xuất CIR (`System/CIR_SYSTEM/`).\n"
                 "   • *Hệ thống Định Vị 2:* Mạng Định Vị Đa Tag Vòng Token Ring (`System/RING_Tag/`).\n"
                 "2. **1 Hệ Thống Xe Tự Hành**:\n"
-                "   • *Hệ thống Xe:* Xe Tự Hành Robot AGV (`System/CAR/`) tích hợp STM32, Raspberry Pi 4 và DWM1001C Tag.\n"
+                "   • *Hệ thống Xe:* Xe Tự Hành Robot AGV (`System/CAR/`) với 2 cảm biến bản thể (IMU & Encoder), Raspberry Pi 4 và DWM1001C Tag.\n"
                 "3. **Kho 48 Bài Báo Khoa Học UWB**: Bao gồm các công trình nghiên cứu hàng đầu về tín hiệu CIR, Deep Learning nhận dạng NLOS, bộ lọc Kalman thích nghi (EKF/UKF) và Tối ưu đồ thị nhân tố (FGO).\n\n"
                 "Bạn có thể yêu cầu tôi tìm kiếm bài báo theo chủ đề, phân tích giải thuật toán học hoặc hướng dẫn mã nguồn thực tế bất cứ lúc nào!"
             )
@@ -261,6 +291,58 @@ class UWBAgent:
                     yield word + " "
             self.history.append({"role": "assistant", "content": identity_text})
             return identity_stream(), []
+
+        # 0.1. Câu hỏi / Nhắc nhở về cảm biến trên xe tự hành CAR
+        if self.is_car_sensors_query(question):
+            q_norm = remove_accents(question.lower().strip())
+            is_reminder = any(k in q_norm for k in ["ghi nho", "chi co imu", "thoi", "dung quen", "nho rang"])
+            intro = (
+                "Tôi đã ghi nhận và ghi nhớ chính xác: "
+                if is_reminder else
+                ""
+            )
+            sensors_text = (
+                f"{intro}## 🚗 Hệ Thống Cảm Biến Trên Xe Tự Hành Robot AGV (`System/CAR/`)\n\n"
+                "Hệ thống xe tự hành Robot AGV trong phòng lab **CHỈ CÓ DUY NHẤT 2 LOẠI CẢM BIẾN BẢN THỂ (Onboard Sensors)**:\n\n"
+                "| STT | Cảm Biến | Giao Tiếp & Phần Cứng | Dữ Liệu Thu Thập | Vai Trò Trong Thuật Toán Định Vị |\n"
+                "|:---:|:---|:---|:---|:---|\n"
+                "| **1** | **Cảm biến Quán tính IMU** *(Inertial Measurement Unit)* | Vi điều khiển STM32 kết nối qua `/dev/ttyACM0` (Baudrate `115200` bps) | Bản tin `$IMU,ax,ay,az,gx,gy,gz`<br>• Gia tốc 3 trục ($a_x, a_y, a_z$)<br>• Vận tốc góc / Con quay hồi chuyển ($g_x, g_y, g_z$) | Cung cấp góc hướng chuyển động (Yaw / Heading angle `robot_deg`) trong pha **Dự đoán (Prediction)** của bộ lọc EKF / FGO. |\n"
+                "| **2** | **Cảm biến Đo Góc Quay Bánh Xe Encoder** *(Wheel Odometry)* | Tích hợp trên cụm động cơ bánh xe, đọc bởi STM32 Timer Encoder | Xung đo vận tốc bánh xe ($v_{left}, v_{right}$)<br>-> Tốc độ di chuyển `robot_v` (cm/s hoặc m/s) | Tính toán chuyển động vi sai (Dead Reckoning) tích hợp vị trí $\\Delta x, \\Delta y$ theo thời gian $\\Delta t$. |\n\n"
+                "---\n\n"
+                "### ⚠️ Phân Biệt Rõ Ràng Với Thiết Bị Vô Tuyến & Trạm Mốc Cố Định:\n"
+                "1. **Module UWB Tag (Decawave DWM1001C):**\n"
+                "   • Được gắn trên xe và kết nối với Raspberry Pi 4 qua cổng `/dev/ttyACM1` (Baudrate **`921600`** bps).\n"
+                "   • **Bản chất:** Đây là **module thu phát vô tuyến RF (Transceiver)** phục vụ đo khoảng cách thời gian bay (ToF) và đọc 59 trường dữ liệu đáp ứng xung kênh CIR, **KHÔNG PHẢI cảm biến bản thể (proprioceptive sensor)** của xe.\n"
+                "2. **Bộ 4 Anchor Cố Định (A0, A1, A2, A3):**\n"
+                "   • **Bản chất:** Đây là các **trạm mốc cố định (Fixed Base Stations)** được gắn trên tường/cột trong phòng lab, **hoàn toàn KHÔNG PHẢI là cảm biến trên xe**.\n\n"
+                "> [!NOTE]\n"
+                "> Trong các thuật toán định vị kết hợp (`realtime_ekf.py`, `realtime_fgoekf.py`):\n"
+                "> • **Pha Dự đoán (Prediction):** Sử dụng 2 cảm biến trên xe là **IMU + Encoder** để ước lượng động học Odometry.\n"
+                "> • **Pha Hiệu chỉnh (Measurement Update):** Sử dụng cự ly ToF từ **UWB Tag** tới 4 **Anchor cố định** (kết hợp bù sai số AI từ `TinyCNNNumpyEngine`) để triệt tiêu sai số trôi tích lũy."
+            )
+            def sensors_stream():
+                for word in sensors_text.split(" "):
+                    yield word + " "
+            self.history.append({"role": "assistant", "content": sensors_text})
+            return sensors_stream(), []
+
+        # 0.2. Câu hỏi về số lượng hệ thống thực nghiệm trong repo (2 hệ thống định vị & 1 hệ thống xe)
+        if self.is_systems_count_query(question):
+            systems_text = (
+                "## 🏢 Kiến Trúc Thực Nghiệm Của Phòng Lab (`System/`): 2 Hệ Thống Định Vị & 1 Hệ Thống Xe\n\n"
+                "Trong kho lưu trữ mã nguồn của bạn, hệ thống thực nghiệm được chia làm **2 hệ thống định vị UWB và 1 hệ thống xe tự hành** (Tổng cộng 3 hệ thống thực nghiệm hoàn chỉnh):\n\n"
+                "| Phân Loại | Hệ Thống | Thư mục mã nguồn | Nền tảng phần cứng & Cấu hình | Giải thuật & Chức năng cốt lõi |\n"
+                "|:---|:---|:---|:---|:---|\n"
+                "| **Hệ thống Định vị 1** | **Định vị TDMA & Trích xuất CIR** | `System/CIR_SYSTEM/` | • Module UWB Decawave DWM1001-DEV (Nordic nRF52832 + DW1000)<br>• Cấu hình 4 Anchor (`0x1001`–`0x1004`) | • Đo cự ly Two-Way Ranging (TWR) theo khe thời gian TDMA đồng bộ.<br>• Trích xuất trực tiếp **1016 mẫu phức** tín hiệu đáp ứng xung kênh CIR qua thanh ghi SPI `0x25` (`ACC_MEM`) hoặc 50 mẫu quanh First Path.<br>• Tính toán Kurtosis, Skewness, Peak count phân loại LOS/NLOS và bù sai số cự ly. |\n"
+                "| **Hệ thống Định vị 2** | **Mạng Định Vị Đa Tag Vòng Token Ring** | `System/RING_Tag/` | • Nordic nRF52832 + Decawave DW1000 (FreeRTOS)<br>• Cấu trúc 3 nút: `ss_bridge` (Master), `ss_twr_init` (Tag di động `MY_TAG_ID = 0x0006`), `ss_twr_resp` (Anchor mốc)<br>• Giao thức Token Ring chống va chạm RF | • Định vị đồng thời nhiều Tag (Multi-Tag tracking) mà không bị xung đột sóng UWB.<br>• Bộ 9 khung bản tin (`POLL 0xE0`, `RESP 0xE1`, `TOKN 0xE2`, `DATA 0xE3`, `RING 0xE4`, `AHLO 0xE5`, `ALST 0xE6`, `ARMV 0xE7`, `ADED 0xE8`).<br>• **5 cơ chế tự phục hồi (Self-Healing)**: Tag Timeout 1000ms, Rhythm Disorder (50), Dead Anchor Removal, Anchor Dynamic Re-join, Resync Timers 50ms & Tag retry 5 lần. |\n"
+                "| **Hệ thống Xe** | **Xe Tự Hành Robot AGV** | `System/CAR/` | • Robot AGV STM32 tích hợp **2 cảm biến bản thể duy nhất: IMU và Encoder bánh xe**.<br>• Máy tính nhúng Raspberry Pi 4.<br>• Module thu phát vô tuyến UWB Tag DWM1001C kết nối 4 Anchor mốc cố định (`A0`–`A3`).<br>• Cổng Serial: `/dev/ttyACM1` (921600 bps - CIR 59 trường) & `/dev/ttyACM0` (115200 bps - STM32 `$IMU` và Odom). | • `realtime_ai_lse.py`: Tiny 1D-CNN Pure NumPy (57D đặc trưng CIR) chạy trực tiếp trên Pi 4 bù sai số range bias $b_i$ trước khi giải LSE.<br>• `realtime_fgoekf.py`: Kết hợp EKF và Factor Graph Optimization (cửa sổ trượt Huber Loss) triệt tiêu Anchor NLOS.<br>• `realtime_ekf.py`: Dead Reckoning kết hợp cự ly UWB.<br>• `realtime_positioning.py`, `realtime_lse.py`, `collect_data_trajec.py`. |\n\n"
+                "Cả 3 hệ thống tạo nên hệ sinh thái nghiên cứu và thực nghiệm định vị trong nhà (IPS) hoàn chỉnh của phòng lab."
+            )
+            def systems_stream():
+                for word in systems_text.split(" "):
+                    yield word + " "
+            self.history.append({"role": "assistant", "content": systems_text})
+            return systems_stream(), []
 
         # 1. Câu hỏi tra cứu danh sách tạp chí / kỷ yếu hội nghị
         if self.is_journal_list_query(question):

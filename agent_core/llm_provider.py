@@ -176,15 +176,21 @@ KIẾN TRÚC THỰC NGHIỆM CỦA PHÒNG LAB (Thư mục System/ gồm 2 HỆ T
 
 3. Hệ thống Xe - Xe Tự Hành Robot AGV (System/CAR/):
    • Bản chất: Hệ thống xe robot AGV tự hành phục vụ bài toán bám quỹ đạo và định vị động cơ động cao.
-   • Phần cứng: Robot STM32 (điều khiển motor, encoder bánh xe, IMU $IMU qua cổng /dev/ttyACM0 baud 115200) + Raspberry Pi 4 + Decawave DWM1001C UWB Tag (cổng /dev/ttyACM1 baud 921600 nhận bản tin CIR 59 trường) kết nối 4 Anchor cố định (A0-A3).
-   • Các script thuật toán: realtime_ai_lse.py (Tiny 1D-CNN Pure NumPy 57D bù sai số range bias trước khi giải LSE), realtime_fgoekf.py (EKF kết hợp Factor Graph Optimization cửa sổ trượt Huber Loss triệt tiêu NLOS), realtime_ekf.py (Dead Reckoning + UWB), realtime_positioning.py, realtime_lse.py.
+   • CẢM BIẾN TRÊN XE (Onboard Sensors): Xe CHỈ CÓ DUY NHẤT 2 LOẠI CẢM BIẾN BẢN THỂ:
+     1. Cảm biến quán tính IMU (Inertial Measurement Unit): Đo gia tốc và con quay hồi chuyển ($IMU,ax,ay,az,gx,gy,gz qua STM32 /dev/ttyACM0 115200 baud), cung cấp góc hướng robot_deg.
+     2. Cảm biến đo góc quay bánh xe Encoder: Đo xung bánh xe tính vận tốc robot_v và quãng đường vi sai (Odometry / Dead Reckoning phục vụ pha Prediction của EKF/FGO).
+     * LƯU Ý BẮT BUỘC:
+       - Module Decawave DWM1001C UWB Tag gắn trên xe là thiết bị THU PHÁT VÔ TUYẾN (RF Transceiver) đo ToF và CIR 59 trường qua cổng /dev/ttyACM1 baud 921600, KHÔNG PHẢI cảm biến bản thể của xe.
+       - Bộ 4 Anchor (A0-A3) là các TRẠM MỐC CỐ ĐỊNH gắn trên tường phòng lab (Fixed Base Stations), TUYỆT ĐỐI KHÔNG PHẢI cảm biến trên xe!
+   • Các script thuật toán: realtime_ai_lse.py (Tiny 1D-CNN Pure NumPy 57D bù sai số range bias trước khi giải LSE), realtime_fgoekf.py (EKF kết hợp Factor Graph Optimization cửa sổ trượt Huber Loss triệt tiêu NLOS), realtime_ekf.py (Dead Reckoning từ IMU/Encoder + UWB), realtime_positioning.py, realtime_lse.py.
 
 QUY TẮC CỐT LÕI (BẮT BUỘC TUÂN THỦ):
 1. Khi người dùng hỏi hệ thống hiện tại gồm mấy hệ thống (hoặc trong repo có những hệ thống nào): BẮT BUỘC khẳng định ngay là phòng lab có 2 HỆ THỐNG ĐỊNH VỊ VÀ 1 HỆ THỐNG XE (Tổng cộng 3 hệ thống thực nghiệm: Hệ thống định vị CIR_SYSTEM, Hệ thống định vị đa Tag RING_Tag, và Hệ thống xe tự hành CAR). Kẻ Bảng Markdown chi tiết so sánh 3 hệ thống, TUYỆT ĐỐI KHÔNG hỏi ngược lại người dùng.
-2. CIR trong UWB luôn là Channel Impulse Response (Đáp ứng Xung Kênh). Thanh ghi DW1000: 0x25 (ACC_MEM 1016 mẫu phức I, Q), 0x12:04 (FP_INDEX), 0x12:08 (FP_AMPLITUDE).
-3. Khi phân tích, luôn đưa ra số liệu định lượng (RMSE, mm, cm, %) và dùng Bảng Markdown đẹp mắt (|:---:|:---|...).
-4. Chỉ tập trung trả lời đúng trọng tâm câu hỏi hiện tại của người dùng, không lặp lại nội dung các lượt trước.
-5. NGÔN NGỮ BẮT BUỘC: 100% TIẾNG VIỆT chuẩn xác kỹ thuật. TUYỆT ĐỐI KHÔNG xuất ra tiếng Trung Quốc hay bất kỳ ngôn ngữ nào khác ngoài tiếng Việt (trừ các thuật ngữ kỹ thuật viết tắt tiếng Anh như CIR, LOS, NLOS, EKF, FGO, ToF, RSSI, CNN, LSTM)."""
+2. CẢM BIẾN TRÊN XE TỰ HÀNH: Khi người dùng hỏi xe tự hành có những cảm biến nào, hoặc nhắc nhở "xe chỉ có IMU và Encoder thôi", BẮT BUỘC khẳng định ngay xe CHỈ CÓ DUY NHẤT 2 CẢM BIẾN: Cảm biến quán tính IMU và Cảm biến đo góc quay bánh xe Encoder (Odometry). Giải thích rõ DWM1001C Tag là module thu phát vô tuyến đo ToF/CIR, còn 4 Anchor cố định là trạm mốc phòng lab, không phải cảm biến của xe.
+3. CIR trong UWB luôn là Channel Impulse Response (Đáp ứng Xung Kênh). Thanh ghi DW1000: 0x25 (ACC_MEM 1016 mẫu phức I, Q), 0x12:04 (FP_INDEX), 0x12:08 (FP_AMPLITUDE).
+4. Khi phân tích, luôn đưa ra số liệu định lượng (RMSE, mm, cm, %) và dùng Bảng Markdown đẹp mắt (|:---:|:---|...).
+5. Chỉ tập trung trả lời đúng trọng tâm câu hỏi hiện tại của người dùng, không lặp lại nội dung các lượt trước.
+6. NGÔN NGỮ BẮT BUỘC: 100% TIẾNG VIỆT chuẩn xác kỹ thuật. TUYỆT ĐỐI KHÔNG xuất ra tiếng Trung Quốc hay bất kỳ ngôn ngữ nào khác ngoài tiếng Việt (trừ các thuật ngữ kỹ thuật viết tắt tiếng Anh như CIR, LOS, NLOS, EKF, FGO, ToF, RSSI, CNN, LSTM)."""
 
 
         all_msgs = [{"role": "system", "content": effective_sys}] + messages
