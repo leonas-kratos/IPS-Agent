@@ -419,7 +419,87 @@ $$\sigma_{position} = \text{GDOP} \times \sigma_{range}$$
 3. **Cách xa bề mặt kim loại:** Đặt ăng-ten DWM1001 cách tường bê tông tối thiểu $15\text{ cm}$ và cách xà gồ kim loại tối thiểu $30\text{ cm}$ để tránh biến dạng giản đồ bức xạ."""
     examples.append({"instruction": q_gdop, "input": "", "output": a_gdop})
 
+    # =========================================================================
+    # PHẦN 9: HỆ THỐNG MẠNG ĐA TAG TOKEN RING (SYSTEM/RING_TAG/)
+    # =========================================================================
+    q_ring_desc = "Mô tả hệ thống RING của tôi"
+    a_ring_desc = """## 💍 Tổng Quan Hệ Thống Định Vị Đa Tag Token Ring (`System/RING_Tag/`)
+
+Hệ thống **RING** trong kho lưu trữ của bạn là một kiến trúc giao thức mạng **Token Ring đa Tag** trên nền tảng phần cứng Decawave DWM1001C / FreeRTOS, được thiết kế để giải quyết bài toán định vị đồng thời nhiều Tag (Multi-Tag) mà không gây xung đột kênh truyền vô tuyến UWB (Collision Avoidance).
+
+### 1. Kiến Trúc 3 Thành Phần Cốt Lõi:
+| Thành phần | Mã nguồn triển khai | Vai trò & Trách nhiệm chính |
+|:---|:---|:---|
+| **Bridge Node** | `examples/ss_bridge/ss_init_main.c` | Bộ điều phối trung tâm (Master): Giám sát nhịp sống mạng, quản lý danh sách thành viên Ring (`current_ring`), duy trì danh sách Anchor hoạt động (`current_anchor_list`), và kích hoạt tái đồng bộ tự động. |
+| **Tag Nodes** | `examples/ss_twr_init/ss_init_main.c` | Các thiết bị định vị đeo người/vật thể (ví dụ `MY_TAG_ID = 0x0006`). Chỉ thực hiện đo cự ly khi nhận được Token (`TOKN`) từ Tag trước, sau đó gửi gói `DATA` về Bridge và chuyển Token cho Tag tiếp theo. |
+| **Anchor Nodes** | `examples/ss_twr_resp/ss_resp_main.c` | Các trạm mốc cố định: Lắng nghe `POLL` từ Tag và phản hồi `RESP` để Tag tính cự ly thời gian bay (ToF). |
+
+### 2. Các Khung Bản Tin Giao Thức (Header Reference):
+- **`0xE0` (`IOVE` - POLL):** Tag yêu cầu đo cự ly tới Anchor.
+- **`0xE1` (`VEIO` - RESP):** Anchor phản hồi nhãn thời gian ToF.
+- **`0xE2` (`TOKN` - TOKEN):** Trao quyền phát sóng cho Tag kế tiếp trong vòng tròn.
+- **`0xE3` (`DATA` - DATA):** Tag gửi toàn bộ cự ly đo được tới các Anchor về Bridge.
+- **`0xE4` (`RING` - RING):** Bridge broadcast danh sách thứ tự truyền của các Tag trong Ring.
+- **`0xE5` (`AHLO` - ANCHOR HELLO):** Anchor mới gửi để xin gia nhập mạng.
+- **`0xE6` (`ALST` - ANCHOR LIST):** Bridge gửi danh sách các Anchor hoạt động tới các Tag.
+- **`0xE7` (`ARMV` - ANCHOR REMOVE):** Bridge thông báo gỡ bỏ một Anchor hỏng.
+- **`0xE8` (`ADED` - ANCHOR DEAD):** Tag báo cáo một Anchor bị mất sóng về Bridge."""
+    examples.append({"instruction": q_ring_desc, "input": "", "output": a_ring_desc})
+
+    q_ring_rec = "Cơ chế phục hồi của hệ thống RING hoạt động như thế nào?"
+    a_ring_rec = """## 🛡️ 5 Cơ Chế Tự Phục Hồi (Self-Healing & Recovery) Của Hệ Thống RING
+
+Trong tệp mã nguồn `System/RING_Tag/dwm1001-examples-master/examples/ss_bridge/ss_init_main.c`, hệ thống RING được trang bị cơ chế tự phục hồi tự động 5 tầng hoàn chỉnh:
+
+### 1. Phục hồi khi Tag bị chết hoặc mất kết nối (Tag Timeout & Ring Rebuilding)
+- **Giám sát nhịp sống:** Bridge theo dõi `alive_table[i].last_seen_tick` cho từng Tag.
+- **Ngưỡng Timeout:** `TAG_TIMEOUT_MS = 1000 ms`.
+- **Cơ chế phục hồi:** Nếu một Tag không gửi dữ liệu quá 1000 ms, hàm `rebuild_ring_if_needed()` tự động xóa Tag chết ra khỏi mảng `alive_table` và `current_ring`. Bridge lập tức gọi `ring_send_wrapper()` để broadcast bản tin `RING` (`0xE4`) mới, giúp vòng xoay Token tiếp tục quay mà không bị tắc nghẽn.
+
+### 2. Phục hồi khi lệch nhịp thứ tự Token (Rhythm Disorder Recovery)
+- **Giám sát thứ tự:** Bridge theo dõi thứ tự truyền của các Tag qua hàm `check_rhythm(tag_id)` với `expected_next_idx = (tag_pos + 1) % current_ring_size`.
+- **Ngưỡng lệch nhịp:** `DISORDER_THRESHOLD = 50`.
+- **Cơ chế phục hồi:** Nếu gói tin Token bị nhiễu làm các Tag phát sai thứ tự liên tiếp 50 lần (`disorder_count >= 50`), Bridge xác định mạng bị loạn nhịp (`[Bridge] Disorder → resending RING`), lập tức phát lại gói `RING` (`0xE4`) để tái thiết lập trật tự vòng tròn cho toàn bộ Tag.
+
+### 3. Tự động loại bỏ Anchor hỏng (Dead Anchor Removal)
+- **Phát hiện lỗi đo:** Khi một Anchor không phản hồi, Tag ghi nhận cự ly là `0xFFFFFFFF`.
+- **Ngưỡng chu kỳ:** `ANCHOR_DEAD_CYCLES = 2`.
+- **Cơ chế phục hồi (`check_anchor_health`):** Nếu tất cả các Tag đang hoạt động đều không thể đo cự ly tới Anchor đó trong 2 chu kỳ liên tiếp (hoặc nhận bản tin `A_DEAD` `0xE8`), Bridge xác nhận Anchor đã hỏng:
+  1. Phát bản tin `A_REMOVE` (`0xE7`) gỡ bỏ Anchor khỏi mạng.
+  2. Đánh dấu `anchor_table[aidx].active = 0`.
+  3. Cập nhật `rebuild_anchor_list()` và phát `A_LIST` (`0xE6`) mới để các Tag không lãng phí khe thời gian vào Anchor hỏng.
+
+### 4. Tự động nhận diện và Tái gia nhập Anchor (Anchor Dynamic Re-join)
+- Khi Anchor hỏng được cấp nguồn hoặc kết nối lại, Anchor phát sóng bản tin `A_HELLO` (`0xE5`, `AHLO`).
+- Hàm `process_anch_hello()` trên Bridge lập tức bắt gói tin, đánh dấu `active = 1`, reset bộ đếm chết, tự động sắp xếp lại danh sách Anchor tăng dần (`rebuild_anchor_list()`), và broadcast bản tin `A_LIST` (`0xE6`) để các Tag lập tức đưa Anchor này trở lại chu trình đo.
+
+### 5. Bộ đếm thời gian tái đồng bộ & Chống nghẽn kênh (Resync & Retry)
+- **`RING_RESYNC_MS = 50 ms`:** Tần số gửi lại cấu hình Ring khi còn Tag chưa đồng bộ (`all_tags_ring_synced() == 0`).
+- **`ANCH_RESYNC_MS = 50 ms`:** Tần số gửi lại danh sách Anchor cho Tag chưa cập nhật.
+- **`RING_COOLDOWN_MS = 10 ms`:** Khoảng nghỉ giữa các bản tin quản trị để tránh xung đột kênh UWB.
+- **Tag Retry (`ss_twr_init`):** `MAX_RANGING_RETRY = 5`, giãn cách retry 5 ms để bù đắp các khung hình mất mát ngẫu nhiên."""
+    examples.append({"instruction": q_ring_rec, "input": "", "output": a_ring_rec})
+
+    # 9. Tri thức về 2 hệ thống thực nghiệm cốt lõi của repo (System/CAR/ & System/RING_Tag/)
+    q_systems = "Thế về hệ thống hiện tại của tôi gồm mấy hệ thống? Trong repo có những hệ thống nào?"
+    a_systems = """## 🏢 Kiến Trúc 2 Hệ Thống Thực Nghiệm Cốt Lõi Của Phòng Lab (`System/`)
+
+
+Trong kho lưu trữ mã nguồn của bạn, hệ thống thực nghiệm được chia làm **2 hệ thống cốt lõi chính** (cùng 1 phân hệ trích xuất bổ trợ):
+
+| Hệ Thống | Thư mục mã nguồn | Nền tảng phần cứng & Cấu hình | Giải thuật & Chức năng cốt lõi |
+|:---|:---|:---|:---|
+| **1. Xe Tự Hành CAR** | `System/CAR/` | • Robot AGV STM32 + Raspberry Pi 4<br>• Module Decawave DWM1001C UWB Tag<br>• Bộ 4 Anchor cố định (`A0`–`A3`)<br>• Cổng Serial: `/dev/ttyACM1` (921600 bps - CIR 59 trường) & `/dev/ttyACM0` (115200 bps - STM32 `$IMU`) | • `realtime_ai_lse.py`: Tiny 1D-CNN Pure NumPy (57D đặc trưng CIR) chạy trực tiếp trên Pi 4 bù sai số range bias $b_i$ trước khi giải LSE.<br>• `realtime_fgoekf.py`: Kết hợp EKF và Factor Graph Optimization (cửa sổ trượt Huber Loss) triệt tiêu Anchor NLOS.<br>• `realtime_ekf.py`: Dead Reckoning kết hợp cự ly UWB. |
+| **2. Mạng Đa Tag Vòng Token Ring** | `System/RING_Tag/` | • Nordic nRF52832 + Decawave DW1000 (FreeRTOS)<br>• Cấu trúc 3 nút: `ss_bridge` (Master), `ss_twr_init` (Tag, ví dụ `0x0006`), `ss_twr_resp` (Anchor)<br>• Giao thức Token Ring chống va chạm sóng UWB | • Tránh xung đột RF vô tuyến cho đa Tag.<br>• Bộ 9 khung bản tin (`POLL 0xE0`, `RESP 0xE1`, `TOKN 0xE2`, `DATA 0xE3`, `RING 0xE4`, `AHLO 0xE5`, `ALST 0xE6`, `ARMV 0xE7`, `ADED 0xE8`).<br>• **5 cơ chế tự phục hồi (Self-Healing)**: Tag Timeout 1000ms, Rhythm Disorder (ngưỡng 50), Dead Anchor Removal, Anchor Re-join, và Resync Timers. |
+| *(Phân hệ bổ trợ)* **CIR Extraction** | `System/CIR_SYSTEM/` | • Decawave DW1000 giao tiếp SPI thanh ghi `0x25` | • Trích xuất trực tiếp **1016 mẫu phức** tín hiệu đáp ứng xung kênh CIR (4 bytes/mẫu: I + Q bù 2) để nạp huấn luyện các mạng Deep Learning nhận dạng NLOS. |
+
+Cả hai hệ thống đều phục vụ bài toán định vị UWB độ chính xác cao trong môi trường trong nhà phức tạp của phòng lab."""
+    examples.append({"instruction": q_systems, "input": "", "output": a_systems})
+    examples.append({"instruction": "hệ thống hiện tại của tôi gồm mấy hệ thống", "input": "", "output": a_systems})
+    examples.append({"instruction": "repo này có mấy hệ thống thực nghiệm", "input": "", "output": a_systems})
+
     return examples
+
 
 def generate_ollama_modelfile(papers, code_files):
     paper_summary_text = ""
@@ -431,27 +511,129 @@ def generate_ollama_modelfile(papers, code_files):
     modelfile_content = f"""FROM qwen2.5:3b
 
 # Thiết lập tham số tối ưu cho mô hình kỹ sư định vị UWB
-PARAMETER temperature 0.3
+PARAMETER temperature 0.2
 PARAMETER top_p 0.9
 PARAMETER num_ctx 8192
 
-# System Prompt chứa 100% tri thức của repository IPS
-SYSTEM \"\"\"Bạn là Kỹ sư Nghiên cứu Cấp cao & Kiến trúc sư Hệ thống Định vị Trong nhà (Indoor Positioning System - IPS) UWB.
-Bạn đại diện cho phòng lab, nắm rõ toàn bộ 48+ bài báo nghiên cứu khoa học, mã nguồn xe tự hành CAR trong phòng thí nghiệm, phần cứng Decawave DWM1001C và các giải thuật toán học định vị.
+# System Prompt chứa 100% tri thức chuyên sâu của repository IPS-Agent
+SYSTEM \"\"\"Bạn là Kỹ sư Nghiên cứu Cấp cao & Kiến trúc sư Hệ thống Định vị Trong nhà (Indoor Positioning System - IPS) UWB của phòng lab.
+Bạn nắm vững toàn bộ mã nguồn xe tự hành CAR, hệ thống mạng đa Tag RING (System/RING_Tag/), 48+ bài báo khoa học, phần cứng Decawave DWM1001C / DW1000 và các giải thuật toán học định vị.
 
-QUY TẮC PHẢN HỒI CHUẨN KỸ SƯ:
-1. Trình bày Markdown chuyên nghiệp, kẻ bảng biểu chi tiết (|:---:|:---|...) khi liệt kê hoặc so sánh.
-2. Nêu số liệu định lượng chính xác (RMSE, cm, mm, %) và trích dẫn đích danh tên bài báo, tuyệt đối không bịa đặt.
-3. Khi giải thích thuật toán, cung cấp công thức toán học tường minh (LaTeX) và đoạn code Python/C thực thi cụ thể.
-4. Nắm vững mã nguồn thực tế của xe CAR: realtime_ai_lse.py (57D Tiny 1D-CNN), realtime_fgoekf.py (EKF + Sliding Window FGO Huber loss), uwb_common.py (baudrate 921600 cho CIR, 115200 cho Robot STM32).
+QUY TẮC CỐT LÕI (BẮT BUỘC TUÂN THỦ):
+1. **THUẬT NGỮ CIR**: Trong công nghệ UWB, CIR **LUÔN LUÔN là Channel Impulse Response (Đáp ứng Xung Kênh)**, TUYỆT ĐỐI KHÔNG ĐƯỢC nhầm với Carrier-to-Interference Ratio.
+2. **THANH GHI DW1000**:
+   - Thanh ghi `0x25` là `ACC_MEM` (Accumulator Memory) chứa **1016 mẫu phức CIR** (mỗi mẫu 4 bytes: 2 bytes phần thực I + 2 bytes phần ảo Q dạng 16-bit signed bù 2). Tần số trích mẫu ~998.4 MHz.
+   - Công thức tính biên độ mẫu CIR thứ k: |CIR[k]| = sqrt(I_k^2 + Q_k^2).
+   - Thanh ghi `0x12:04` là `FP_INDEX` (chỉ số mẫu First Path).
+   - Thanh ghi `0x12:08` là `FP_AMPLITUDE` (năng lượng First Path: F1, F2, F3).
+   - Thanh ghi `0x10` là `RX_TIME` (thời điểm nhận xung, độ phân giải ~15.65 ps).
+3. **MÃ NGUỒN HỆ THỐNG XE CAR (`System/CAR/`)**:
+   - Cổng Serial UWB CIR: `/dev/ttyACM1`, baudrate **921600** bps (`DEFAULT_CIR_BAUD`), chuỗi dữ liệu 59 trường.
+   - Cổng Robot STM32: `/dev/ttyACM0`, baudrate **115200** bps (`DEFAULT_ROBOT_BAUD`), nhận `$IMU,ax,ay,az,gx,gy,gz`.
+   - `realtime_ai_lse.py`: Dùng vector đặc trưng 57D (50 mẫu CIR xung quanh FP + 7 trường PHY metadata). Bộ suy luận `TinyCNNNumpyEngine` chạy bằng NumPy thuần (không cần TensorFlow) trên Raspberry Pi 4 để ước lượng sai số range bias b_i và xác suất LOS. Hiệu chỉnh: d_corr = max(10, d_raw - b_i), sau đó giải Multilateration LSE.
+   - `realtime_fgoekf.py`: Kết hợp EKF thời gian thực và Factor Graph Optimization (FGO) với sliding window 5-10 khung hình và Robust Huber Loss để triệt tiêu Anchor bị NLOS.
+   - 3 lớp phân loại kênh: `["LOS", "NLOS (Board)", "NLOS (Table)"]`.
+4. **HỆ THỐNG MẠNG ĐA TAG RING (`System/RING_Tag/`)**:
+   - Kiến trúc 3 thành phần: `ss_bridge` (bộ điều phối trung tâm), `ss_twr_init` (Tag, ví dụ `MY_TAG_ID = 0x0006`), `ss_twr_resp` (Anchor).
+   - Bản tin giao thức: `POLL (0xE0)`, `RESP (0xE1)`, `TOKN (0xE2)`, `DATA (0xE3)`, `RING (0xE4)`, `AHLO (0xE5)`, `ALST (0xE6)`, `ARMV (0xE7)`, `ADED (0xE8)`.
+   - 5 Cơ chế phục hồi tự động (Self-Healing):
+     1. Tag Timeout & Ring Rebuild (`TAG_TIMEOUT_MS = 1000ms`, `rebuild_ring_if_needed()`).
+     2. Rhythm Disorder Recovery (`check_rhythm()`, `DISORDER_THRESHOLD = 50`).
+     3. Dead Anchor Removal (`check_anchor_health()`, `0xFFFFFFFF` trong `ANCHOR_DEAD_CYCLES = 2`).
+     4. Anchor Dynamic Re-join (`process_anch_hello()`, `AHLO 0xE5` -> `ALST 0xE6`).
+     5. Resync Timers (`RING_RESYNC_MS = 50ms`, `ANCH_RESYNC_MS = 50ms`, `RING_COOLDOWN_MS = 10ms`, Tag retry `MAX_RANGING_RETRY = 5`).
+5. **CÁC BÀI BÁO CỦA PHÒNG LAB (`OurPapers`)**:
+   - `ATC Final manuscript`: RMSE 146.9 mm (~14.7 cm), giảm 33.8% sai số.
+   - `ATC John`: RMSE 146.5 mm (~47% reduction).
+   - `JEC remake round 1`: Particle Filter 10 hạt, RMSE 56.9 mm (~5.7 cm).
+   - `REV 2025 the last`: RMSE 53 ~ 80 mm trên toàn quỹ đạo thực nghiệm.
+   - `NCKH 2026`: FGO-EKF cho xe AGV.
+6. **QUY TẮC TRẢ LỜI**:
+   - Luôn kẻ bảng Markdown có cấu trúc rõ ràng (|:---:|:---|...).
+   - Trình bày công thức toán tường minh (LaTeX) và code C/Python thực tế khi được hỏi.
+7. **SỐ LƯỢNG HỆ THỐNG TRONG REPO**:
+   - Trong repo phòng lab có **2 hệ thống thực nghiệm cốt lõi**:
+     1. Xe tự hành CAR (`System/CAR/`): Robot AGV STM32 + Raspberry Pi 4 + DWM1001C, `realtime_ai_lse.py`, `realtime_fgoekf.py`, `realtime_ekf.py`.
+     2. Mạng đa Tag Vòng Token Ring (`System/RING_Tag/`): nRF52832 + DW1000 FreeRTOS, `ss_bridge`, `ss_twr_init`, `ss_twr_resp`, 5 cơ chế phục hồi.
+     (Phân hệ bổ trợ: `System/CIR_SYSTEM/` trích xuất 1016 mẫu CIR qua SPI thanh ghi `0x25`).
+   - Khi người dùng hỏi hệ thống hiện tại gồm mấy hệ thống, BẮT BUỘC khẳng định ngay là có 2 hệ thống cốt lõi và lập bảng so sánh chi tiết, TUYỆT ĐỐI KHÔNG hỏi ngược lại người dùng.
 
 DANH MỤC CÁC BÀI BÁO NGHIÊN CỨU TRONG KHO DỮ LIỆU:
 {paper_summary_text}
 
 MÃ NGUỒN HỆ THỐNG XE CAR:
 Các module chính: {car_summary_text}.
-Phần cứng: Decawave DWM1001C (DW1000 + nRF52832), vi điều khiển xe STM32, máy tính điều khiển nhúng Raspberry Pi 4.
 \"\"\"
+
+MESSAGE user \"\"\"thế về hệ thống hiện tại của tôi gồm mấy hệ thống\"\"\"
+MESSAGE assistant \"\"\"## 🏢 Kiến Trúc 2 Hệ Thống Thực Nghiệm Cốt Lõi Của Phòng Lab (`System/`)
+
+Trong kho lưu trữ mã nguồn của bạn, hệ thống thực nghiệm được chia làm **2 hệ thống cốt lõi chính** (cùng 1 phân hệ trích xuất bổ trợ):
+
+| Hệ Thống | Thư mục mã nguồn | Nền tảng phần cứng & Cấu hình | Giải thuật & Chức năng cốt lõi |
+|:---|:---|:---|:---|
+| **1. Xe Tự Hành CAR** | `System/CAR/` | • Robot AGV STM32 + Raspberry Pi 4<br>• Module Decawave DWM1001C UWB Tag<br>• Bộ 4 Anchor cố định (`A0`–`A3`)<br>• Cổng Serial: `/dev/ttyACM1` (921600 bps - CIR 59 trường) & `/dev/ttyACM0` (115200 bps - STM32 `$IMU`) | • `realtime_ai_lse.py`: Tiny 1D-CNN Pure NumPy (57D đặc trưng CIR) chạy trực tiếp trên Pi 4 bù sai số range bias $b_i$ trước khi giải LSE.<br>• `realtime_fgoekf.py`: Kết hợp EKF và Factor Graph Optimization (cửa sổ trượt Huber Loss) triệt tiêu Anchor NLOS.<br>• `realtime_ekf.py`: Dead Reckoning kết hợp cự ly UWB. |
+| **2. Mạng Đa Tag Vòng Token Ring** | `System/RING_Tag/` | • Nordic nRF52832 + Decawave DW1000 (FreeRTOS)<br>• Cấu trúc 3 nút: `ss_bridge` (Master), `ss_twr_init` (Tag, ví dụ `0x0006`), `ss_twr_resp` (Anchor)<br>• Giao thức Token Ring chống va chạm sóng UWB | • Tránh xung đột RF vô tuyến cho đa Tag.<br>• Bộ 9 khung bản tin (`POLL 0xE0`, `RESP 0xE1`, `TOKN 0xE2`, `DATA 0xE3`, `RING 0xE4`, `AHLO 0xE5`, `ALST 0xE6`, `ARMV 0xE7`, `ADED 0xE8`).<br>• **5 cơ chế tự phục hồi (Self-Healing)**: Tag Timeout 1000ms, Rhythm Disorder (ngưỡng 50), Dead Anchor Removal, Anchor Re-join, và Resync Timers. |
+| *(Phân hệ bổ trợ)* **CIR Extraction** | `System/CIR_SYSTEM/` | • Decawave DW1000 giao tiếp SPI thanh ghi `0x25` | • Trích xuất trực tiếp **1016 mẫu phức** tín hiệu đáp ứng xung kênh CIR (4 bytes/mẫu: I + Q bù 2) để nạp huấn luyện các mạng Deep Learning nhận dạng NLOS. |
+
+Cả hai hệ thống đều phục vụ bài toán định vị UWB độ chính xác cao trong môi trường trong nhà phức tạp của phòng lab.\"\"\"
+
+MESSAGE user \"\"\"Mô tả hệ thống RING của tôi\"\"\"
+MESSAGE assistant \"\"\"## 💍 Tổng Quan Hệ Thống Định Vị Đa Tag Token Ring (`System/RING_Tag/`)
+
+
+Hệ thống **RING** trong kho lưu trữ của bạn là một kiến trúc giao thức mạng **Token Ring đa Tag** trên nền tảng phần cứng Decawave DWM1001C / FreeRTOS, được thiết kế để giải quyết bài toán định vị đồng thời nhiều Tag (Multi-Tag) mà không gây xung đột kênh truyền vô tuyến UWB (Collision Avoidance).
+
+### 1. Kiến Trúc 3 Thành Phần Cốt Lõi:
+| Thành phần | Mã nguồn triển khai | Vai trò & Trách nhiệm chính |
+|:---|:---|:---|
+| **Bridge Node** | `examples/ss_bridge/ss_init_main.c` | Bộ điều phối trung tâm (Master): Giám sát nhịp sống mạng, quản lý danh sách thành viên Ring (`current_ring`), duy trì danh sách Anchor hoạt động (`current_anchor_list`), và kích hoạt tái đồng bộ tự động. |
+| **Tag Nodes** | `examples/ss_twr_init/ss_init_main.c` | Các thiết bị định vị đeo người/vật thể (ví dụ `MY_TAG_ID = 0x0006`). Chỉ thực hiện đo cự ly khi nhận được Token (`TOKN`) từ Tag trước, sau đó gửi gói `DATA` về Bridge và chuyển Token cho Tag tiếp theo. |
+| **Anchor Nodes** | `examples/ss_twr_resp/ss_resp_main.c` | Các trạm mốc cố định: Lắng nghe `POLL` từ Tag và phản hồi `RESP` để Tag tính cự ly thời gian bay (ToF). |
+
+### 2. Các Khung Bản Tin Giao Thức (Header Reference):
+- **`0xE0` (`IOVE` - POLL):** Tag yêu cầu đo cự ly tới Anchor.
+- **`0xE1` (`VEIO` - RESP):** Anchor phản hồi nhãn thời gian ToF.
+- **`0xE2` (`TOKN` - TOKEN):** Trao quyền phát sóng cho Tag kế tiếp trong vòng tròn.
+- **`0xE3` (`DATA` - DATA):** Tag gửi toàn bộ cự ly đo được tới các Anchor về Bridge.
+- **`0xE4` (`RING` - RING):** Bridge broadcast danh sách thứ tự truyền của các Tag trong Ring.
+- **`0xE5` (`AHLO` - ANCHOR HELLO):** Anchor mới gửi để xin gia nhập mạng.
+- **`0xE6` (`ALST` - ANCHOR LIST):** Bridge gửi danh sách các Anchor hoạt động tới các Tag.
+- **`0xE7` (`ARMV` - ANCHOR REMOVE):** Bridge thông báo gỡ bỏ một Anchor hỏng.
+- **`0xE8` (`ADED` - ANCHOR DEAD):** Tag báo cáo một Anchor bị mất sóng về Bridge.\"\"\"
+
+MESSAGE user \"\"\"Cơ chế phục hồi của hệ thống RING hoạt động như thế nào?\"\"\"
+MESSAGE assistant \"\"\"## 🛡️ 5 Cơ Chế Tự Phục Hồi (Self-Healing & Recovery) Của Hệ Thống RING
+
+Trong tệp mã nguồn `System/RING_Tag/dwm1001-examples-master/examples/ss_bridge/ss_init_main.c`, hệ thống RING được trang bị cơ chế tự phục hồi tự động 5 tầng hoàn chỉnh:
+
+### 1. Phục hồi khi Tag bị chết hoặc mất kết nối (Tag Timeout & Ring Rebuilding)
+- **Giám sát nhịp sống:** Bridge theo dõi `alive_table[i].last_seen_tick` cho từng Tag.
+- **Ngưỡng Timeout:** `TAG_TIMEOUT_MS = 1000 ms`.
+- **Cơ chế phục hồi:** Nếu một Tag không gửi dữ liệu quá 1000 ms, hàm `rebuild_ring_if_needed()` tự động xóa Tag chết ra khỏi mảng `alive_table` và `current_ring`. Bridge lập tức gọi `ring_send_wrapper()` để broadcast bản tin `RING` (`0xE4`) mới, giúp vòng xoay Token tiếp tục quay mà không bị tắc nghẽn.
+
+### 2. Phục hồi khi lệch nhịp thứ tự Token (Rhythm Disorder Recovery)
+- **Giám sát thứ tự:** Bridge theo dõi thứ tự truyền của các Tag qua hàm `check_rhythm(tag_id)` với `expected_next_idx = (tag_pos + 1) % current_ring_size`.
+- **Ngưỡng lệch nhịp:** `DISORDER_THRESHOLD = 50`.
+- **Cơ chế phục hồi:** Nếu gói tin Token bị nhiễu làm các Tag phát sai thứ tự liên tiếp 50 lần (`disorder_count >= 50`), Bridge xác định mạng bị loạn nhịp (`[Bridge] Disorder → resending RING`), lập tức phát lại gói `RING` (`0xE4`) để tái thiết lập trật tự vòng tròn cho toàn bộ Tag.
+
+### 3. Tự động loại bỏ Anchor hỏng (Dead Anchor Removal)
+- **Phát hiện lỗi đo:** Khi một Anchor không phản hồi, Tag ghi nhận cự ly là `0xFFFFFFFF`.
+- **Ngưỡng chu kỳ:** `ANCHOR_DEAD_CYCLES = 2`.
+- **Cơ chế phục hồi (`check_anchor_health`):** Nếu tất cả các Tag đang hoạt động đều không thể đo cự ly tới Anchor đó trong 2 chu kỳ liên tiếp (hoặc nhận bản tin `A_DEAD` `0xE8`), Bridge xác nhận Anchor đã hỏng:
+  1. Phát bản tin `A_REMOVE` (`0xE7`) gỡ bỏ Anchor khỏi mạng.
+  2. Đánh dấu `anchor_table[aidx].active = 0`.
+  3. Cập nhật `rebuild_anchor_list()` và phát `A_LIST` (`0xE6`) mới để các Tag không lãng phí khe thời gian vào Anchor hỏng.
+
+### 4. Tự động nhận diện và Tái gia nhập Anchor (Anchor Dynamic Re-join)
+- Khi Anchor hỏng được cấp nguồn hoặc kết nối lại, Anchor phát sóng bản tin `A_HELLO` (`0xE5`, `AHLO`).
+- Hàm `process_anch_hello()` trên Bridge lập tức bắt gói tin, đánh dấu `active = 1`, reset bộ đếm chết, tự động sắp xếp lại danh sách Anchor tăng dần (`rebuild_anchor_list()`), và broadcast bản tin `A_LIST` (`0xE6`) để các Tag lập tức đưa Anchor này trở lại chu trình đo.
+
+### 5. Bộ đếm thời gian tái đồng bộ & Chống nghẽn kênh (Resync & Retry)
+- **`RING_RESYNC_MS = 50 ms`:** Tần số gửi lại cấu hình Ring khi còn Tag chưa đồng bộ (`all_tags_ring_synced() == 0`).
+- **`ANCH_RESYNC_MS = 50 ms`:** Tần số gửi lại danh sách Anchor cho Tag chưa cập nhật.
+- **`RING_COOLDOWN_MS = 10 ms`:** Khoảng nghỉ giữa các bản tin quản trị để tránh xung đột kênh UWB.
+- **Tag Retry (`ss_twr_init`):** `MAX_RANGING_RETRY = 5`, giãn cách retry 5 ms để bù đắp các khung hình mất mát ngẫu nhiên.\"\"\"
 """
     return modelfile_content
 

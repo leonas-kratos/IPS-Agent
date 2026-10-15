@@ -28,13 +28,16 @@ version: 1.0.0
 
 ---
 
-## 3. Kiến trúc Hệ thống Triển khai Thực tế (Thư mục `System/`)
-Dự án IPS UWB của phòng lab bao gồm các hệ thống phần cứng và phần mềm sau:
-* **Hệ thống Xe Tự hành CAR (`System/CAR_SYSTEM/`):**
-  * Xe trang bị Tag UWB giao tiếp với bộ 4 Anchor cố định đặt tại 4 góc phòng.
-  * Tích hợp encoder bánh xe, IMU và vi điều khiển điều khiển động cơ qua PWM.
-* **Hệ thống CIR_SYSTEM (`System/CIR_SYSTEM/`):**
-  * Module đọc liên tục chuỗi xung CIR tốc độ cao và truyền về máy tính/server.
-  * Tích hợp script định vị `realtime_ekf.py` và `realtime_fgoekf.py`.
-* **Hệ thống Vòng đeo RING Tag (`System/RING_Tag/`):**
-  * Thiết bị đeo tay/đeo người kích thước nhỏ gọn phục vụ bài toán giám sát vị trí bệnh nhân hoặc công nhân trong nhà máy.
+## 3. Kiến trúc 2 Hệ Thống Triển Khai Thực Tế Cốt Lõi (Thư mục `System/`)
+Dự án IPS UWB của phòng lab bao gồm **2 hệ thống thực nghiệm cốt lõi**:
+* **1. Hệ thống Xe Tự Hành CAR (`System/CAR/`):**
+  * Xe AGV trang bị vi điều khiển STM32 kết nối máy tính nhúng Raspberry Pi 4 và module UWB Tag Decawave DWM1001C, kết nối bộ 4 Anchor (`A0`–`A3`).
+  * Cổng Serial: `/dev/ttyACM1` (921600 baud, 59 trường CIR) và `/dev/ttyACM0` (115200 baud, STM32 `$IMU` và Odom bánh xe).
+  * Các thuật toán định vị thời gian thực: `realtime_ai_lse.py` (Tiny 1D-CNN Pure NumPy 57D bù sai số range bias trước khi giải LSE), `realtime_fgoekf.py` (EKF + Sliding Window FGO với Huber Loss triệt tiêu NLOS), `realtime_ekf.py`, `realtime_positioning.py`.
+* **2. Hệ thống Mạng Đa Tag Vòng Token Ring (`System/RING_Tag/`):**
+  * Giải quyết bài toán định vị đồng thời nhiều Tag (Multi-Tag tracking) không va chạm sóng vô tuyến UWB.
+  * Cấu trúc 3 loại Node trên nRF52832 + DW1000 FreeRTOS: `ss_bridge` (Master điều phối), `ss_twr_init` (Tag di động mang `MY_TAG_ID = 0x0006`, chỉ đo TWR khi cầm Token `0xE2`), `ss_twr_resp` (Anchor trạm mốc).
+  * 5 cơ chế tự phục hồi (Self-Healing): Tag Timeout 1000ms, Rhythm Disorder (ngưỡng 50), Dead Anchor Removal (2 chu kỳ 0xFFFFFFFF), Anchor Dynamic Re-join (`AHLO`), Resync Timers 50ms & Tag retry 5 lần.
+* **3. Phân hệ bổ trợ CIR_SYSTEM (`System/CIR_SYSTEM/`):**
+  * Trích xuất liên tục 1016 mẫu phức CIR qua thanh ghi SPI `0x25` ACC_MEM của DW1000 để huấn luyện các mạng Deep Learning nhận dạng NLOS.
+

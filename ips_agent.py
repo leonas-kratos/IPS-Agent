@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+import time
 import argparse
 from pathlib import Path
 
@@ -37,10 +38,21 @@ def run_interactive_cli(agent: UWBAgent):
             "👉 Tải model nhẹ khuyên dùng (2GB): [bold cyan]ollama pull qwen2.5:3b[/bold cyan]\n"
         )
 
+    last_ctrl_c_time = 0.0
     while True:
         try:
             user_input = console.input("[bold green]IPS-Agent ❯ [/bold green]").strip()
-        except (KeyboardInterrupt, EOFError):
+            last_ctrl_c_time = 0.0
+        except KeyboardInterrupt:
+            now = time.time()
+            if now - last_ctrl_c_time < 2.0:
+                console.print("\n[bold yellow]Tạm biệt! Hẹn gặp lại.[/bold yellow]")
+                break
+            else:
+                last_ctrl_c_time = now
+                console.print("\n[dim yellow](Nhấn Ctrl+C một lần nữa trong vòng 2 giây để thoát)[/dim yellow]")
+                continue
+        except EOFError:
             console.print("\n[bold yellow]Tạm biệt! Hẹn gặp lại.[/bold yellow]")
             break
 
@@ -216,16 +228,17 @@ def run_interactive_cli(agent: UWBAgent):
 
         # Trả lời câu hỏi người dùng
         try:
-            with console.status("[bold cyan]🧠 Đang tra cứu tài liệu UWB & sinh phản hồi...[/bold cyan]", spinner="dots"):
-                stream_gen, retrieved_docs = agent.answer_question_stream(user_input)
+            stream_gen, retrieved_docs = agent.answer_question_stream(user_input)
             
             # Hiển thị tài liệu trích dẫn (chỉ khi người dùng chủ động bật --rag)
             if retrieved_docs and agent.use_rag:
                 print_sources(retrieved_docs)
 
-            # Stream câu trả lời
+            # Stream câu trả lời thời gian thực (nhấn Ctrl+C 1 lần dừng câu trả lời hiện tại)
             stream_markdown_response(stream_gen)
 
+        except KeyboardInterrupt:
+            console.print("\n\n[bold yellow]⏹ Đã dừng phản hồi.[/bold yellow]\n")
         except Exception as e:
             console.print(f"\n[bold red]Lỗi khi xử lý:[/bold red] {str(e)}\n")
 

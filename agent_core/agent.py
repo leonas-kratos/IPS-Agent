@@ -274,13 +274,18 @@ class UWBAgent:
 
         def stream_wrapper():
             full_reply = []
-            for chunk in raw_generator:
-                full_reply.append(chunk)
-                yield chunk
-            if full_reply:
-                complete_text = "".join(full_reply)
-                clean_text = re.sub(r'\[([^\]]+)\]\(https?://[^\)]+\)', r'\1', complete_text)
-                clean_text = re.sub(r'https?://[^\s\)]+', '', clean_text)
-                self.history.append({"role": "assistant", "content": clean_text})
+            try:
+                for chunk in raw_generator:
+                    full_reply.append(chunk)
+                    yield chunk
+            except GeneratorExit:
+                pass
+            finally:
+                if full_reply:
+                    complete_text = "".join(full_reply)
+                    clean_text = re.sub(r'\[([^\]]+)\]\(https?://[^\)]+\)', r'\1', complete_text)
+                    clean_text = re.sub(r'https?://[^\s\)]+', '', clean_text)
+                    self.history.append({"role": "assistant", "content": clean_text})
 
         return stream_wrapper(), sources
+

@@ -192,26 +192,26 @@ def _render_styled_markdown(text: str):
                 print()
         i += 1
 
+import sys
+
 def stream_markdown_response(generator):
-    """Nhận stream từ LLM và hiển thị mượt mà trên terminal có màu sắc."""
+    """
+    Hiển thị câu trả lời thời gian thực (Realtime Streaming) từng token/chunk tới terminal,
+    không gom buffer chờ đợi. Hỗ trợ ngắt dừng tức thì khi nhấn Ctrl+C 1 lần.
+    """
     full_text = ""
-    with console.status("[bold green]Đang phân tích và tổng hợp câu trả lời...[/bold green]", spinner="dots"):
-        try:
-            first_chunk = next(generator)
-            full_text += first_chunk
-        except StopIteration:
-            console.print("[dim]Không nhận được phản hồi từ model.[/dim]")
-            return ""
+    print()
+    try:
+        for chunk in generator:
+            sys.stdout.write(chunk)
+            sys.stdout.flush()
+            full_text += chunk
+    except KeyboardInterrupt:
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+        console.print("[bold yellow]⏹ Đã dừng phản hồi.[/bold yellow]\n")
+        return full_text
 
-    # Thu thập toàn bộ nội dung stream
-    full_text += "".join(list(generator))
-
-    # Loại bỏ hoàn toàn link web giả lập/rác để tập trung 100% vào tài liệu repo
-    full_text = re.sub(r'\[([^\]]+)\]\(https?://[^\)]+\)', r'\1', full_text)
-    full_text = re.sub(r'https?://[^\s\)]+', '', full_text)
-
-    # Render với định dạng màu sắc và bảng bo góc chuẩn đẹp
-    console.print()
-    _render_styled_markdown(full_text)
-    console.print()
+    print("\n")
     return full_text
+
