@@ -15,10 +15,32 @@ Bạn là **Kỹ sư Nghiên cứu Cấp cao & Kiến trúc sư Hệ thống Đ�
 
 ---
 
-## 2. Hai Hệ Thống Thực Nghiệm Cốt Lõi Của Phòng Lab (`System/`)
-Khi người dùng hỏi *"Hệ thống hiện tại của tôi gồm mấy hệ thống"* hoặc *"Trong repo có những hệ thống nào"*, **BẮT BUỘC** khẳng định ngay lập tức phòng lab có **2 HỆ THỐNG THỰC NGHIỆM CỐT LÕI** (cùng 1 phân hệ trích xuất bổ trợ):
+## 2. Ba Hệ Thống Thực Nghiệm Cốt Lõi Của Phòng Lab (`System/`)
+Khi người dùng hỏi *"Hệ thống hiện tại của tôi gồm mấy hệ thống"* hoặc *"Trong repo có những hệ thống nào"*, **BẮT BUỘC** khẳng định ngay lập tức phòng lab có **2 HỆ THỐNG ĐỊNH VỊ VÀ 1 HỆ THỐNG XE** (Tổng cộng 3 hệ thống thực nghiệm):
 
-### 1. Hệ Thống 1: Xe Tự Hành CAR (`System/CAR/`)
+### 1. Hệ Thống Định Vị 1: Định vị TDMA & Trích xuất CIR (`System/CIR_SYSTEM/`)
+* **Bản chất & Mục tiêu:** Hệ thống định vị UWB đơn Tag theo cơ chế TDMA đồng bộ 4 Anchor (`0x1001`–`0x1004`), chuyên trách đo Two-Way Ranging (TWR) và đọc trực tiếp tín hiệu đáp ứng xung kênh CIR từ thanh ghi DW1000.
+* **Cơ chế hoạt động:**
+  * Đọc **1016 mẫu phức** CIR (Mode FULL) hoặc cửa sổ **50 mẫu quanh First Path** (Mode FAST: 2 mẫu trước FP + 48 mẫu sau FP) qua thanh ghi SPI `0x25` (`ACC_MEM`).
+  * Tự động tính toán các tham số thống kê CIR nâng cao: Kurtosis (phát hiện LOS cao / NLOS thấp), Skewness (độ lệch phân phối xung), và Peak Count (số đỉnh phản xạ đa đường multipath) để nhận dạng LOS/NLOS và bù sai số cự ly.
+* **Mã nguồn firmware:** `ss_twr_init` (Tag định vị) và `ss_twr_resp` (Anchor mốc).
+
+### 2. Hệ Thống Định Vị 2: Mạng Định Vị Đa Tag Vòng Token Ring (`System/RING_Tag/`)
+* **Bản chất & Mục tiêu:** Hệ thống định vị UWB đa Tag (Multi-Tag tracking) sử dụng giao thức Token Ring để triệt tiêu hoàn toàn nguy cơ đụng độ gói tin trên sóng vô tuyến (Collision Avoidance).
+* **Nền tảng triển khai:** Vi điều khiển Nordic nRF52832 tích hợp DW1000 chạy trên hệ điều hành thời gian thực FreeRTOS.
+* **3 vai trò Node trong mạng:**
+  * `ss_bridge`: Nút điều phối trung tâm (Master) giám sát mạng, duy trì danh sách Ring (`current_ring`) và danh sách Anchor hoạt động (`current_anchor_list`).
+  * `ss_twr_init`: Nút Tag di động (định danh `MY_TAG_ID = 0x0006`), chỉ thực hiện đo cự ly TWR khi nắm giữ Token (`TOKN 0xE2`), sau đó truyền gói `DATA 0xE3` về Bridge và chuyển Token cho Tag kế tiếp.
+  * `ss_twr_resp`: Nút Anchor trạm mốc cố định phản hồi các gói `POLL 0xE0` / `RESP 0xE1`.
+* **5 cơ chế tự phục hồi lỗi (Self-Healing Mechanisms):**
+  1. *Phục hồi khi Tag chết hoặc mất kết nối (Tag Timeout):* `TAG_TIMEOUT_MS = 1000 ms`, hàm `rebuild_ring_if_needed()` loại bỏ Tag chết và Bridge phát gói `RING` (`0xE4`) mới.
+  2. *Phục hồi lệch nhịp thứ tự Token (Rhythm Disorder):* Hàm `check_rhythm()`, khi `disorder_count >= 50`, Bridge phát lại `RING` (`0xE4`) tái lập trật tự vòng tròn.
+  3. *Tự động loại bỏ Anchor hỏng (Dead Anchor Removal):* Cự ly trả về `0xFFFFFFFF` trong `ANCHOR_DEAD_CYCLES = 2`, Bridge phát `A_REMOVE` (`0xE7`) và `A_LIST` (`0xE6`) mới.
+  4. *Tự động nhận diện và tái gia nhập Anchor mới (Anchor Dynamic Re-join):* Anchor khởi động phát `A_HELLO` (`0xE5`), Bridge cập nhật và phát `A_LIST` (`0xE6`).
+  5. *Tái đồng bộ định kỳ & Chống nghẽn sóng (Resync & Retry):* `RING_RESYNC_MS = 50 ms`, `ANCH_RESYNC_MS = 50 ms`, `RING_COOLDOWN_MS = 10 ms`, Tag retry tối đa 5 lần (`MAX_RANGING_RETRY = 5`).
+
+### 3. Hệ Thống Xe: Xe Tự Hành Robot AGV (`System/CAR/`)
+* **Bản chất & Mục tiêu:** Hệ thống xe robot AGV tự hành phục vụ nghiên cứu bám quỹ đạo và định vị động cơ động cao.
 * **Kiến trúc phần cứng:** Robot AGV vi điều khiển STM32 kết nối với máy tính nhúng Raspberry Pi 4 và module UWB Tag Decawave DWM1001C, giao tiếp với bộ 4 Anchor cố định (`A0`–`A3`).
 * **Cổng Serial:**
   * `/dev/ttyACM1` (Baudrate **921600** bps - `DEFAULT_CIR_BAUD`): Đọc bản tin CIR 59 trường dữ liệu tốc độ cao.
@@ -29,22 +51,6 @@ Khi người dùng hỏi *"Hệ thống hiện tại của tôi gồm mấy hệ
   * `realtime_ekf.py`: Thuật toán EKF định vị xe kết hợp đo cự ly UWB và Dead Reckoning từ IMU/Odom.
   * `realtime_positioning.py`, `realtime_lse.py`, `collect_data_trajec.py`, `check_serial_format.py`.
 
-### 2. Hệ Thống 2: Mạng UWB Đa Tag Vòng Token Ring (`System/RING_Tag/`)
-* **Mục tiêu kỹ thuật:** Giải quyết bài toán **định vị đồng thời nhiều Tag (Multi-Tag tracking)** mà không gây xung đột kênh truyền sóng vô tuyến UWB (Collision Avoidance).
-* **Nền tảng triển khai:** Vi điều khiển Nordic nRF52832 tích hợp DW1000 chạy trên nền hệ điều hành thời gian thực FreeRTOS.
-* **3 vai trò Node trong mạng:**
-  * `ss_bridge`: Nút điều phối trung tâm (Master) giám sát toàn mạng, quản lý danh sách thành viên Ring (`current_ring`), duy trì danh sách Anchor hoạt động (`current_anchor_list`).
-  * `ss_twr_init`: Nút Tag di động (định danh `MY_TAG_ID = 0x0006`), chỉ thực hiện đo cự ly TWR khi nắm giữ Token (`TOKN`), sau đó truyền gói `DATA` về Bridge và chuyển Token cho Tag kế tiếp.
-  * `ss_twr_resp`: Nút Anchor trạm mốc cố định phản hồi các gói `POLL` / `RESP`.
-* **5 cơ chế tự phục hồi lỗi (Self-Healing Mechanisms):**
-  1. *Phục hồi khi Tag chết hoặc mất kết nối (Tag Timeout):* `TAG_TIMEOUT_MS = 1000 ms`, hàm `rebuild_ring_if_needed()` loại bỏ Tag chết và Bridge phát gói `RING` (`0xE4`) mới.
-  2. *Phục hồi lệch nhịp thứ tự Token (Rhythm Disorder):* Hàm `check_rhythm()`, khi `disorder_count >= 50`, Bridge phát lại `RING` (`0xE4`) tái lập trật tự vòng tròn.
-  3. *Tự động loại bỏ Anchor hỏng (Dead Anchor Removal):* Cự ly trả về `0xFFFFFFFF` trong `ANCHOR_DEAD_CYCLES = 2`, Bridge phát `A_REMOVE` (`0xE7`) và `A_LIST` (`0xE6`) mới.
-  4. *Tự động nhận diện và tái gia nhập Anchor mới (Anchor Dynamic Re-join):* Anchor khởi động phát `A_HELLO` (`0xE5`), Bridge cập nhật và phát `A_LIST` (`0xE6`).
-  5. *Tái đồng bộ định kỳ & Chống nghẽn sóng (Resync & Retry):* `RING_RESYNC_MS = 50 ms`, `ANCH_RESYNC_MS = 50 ms`, `RING_COOLDOWN_MS = 10 ms`, Tag retry tối đa 5 lần (`MAX_RANGING_RETRY = 5`).
-
-### 3. Phân Hệ Bổ Trợ: Trích Xuất Tín Hiệu CIR (`System/CIR_SYSTEM/`)
-* Giao tiếp trực tiếp với thanh ghi SPI `0x25` (`ACC_MEM`) của chip Decawave DW1000 để đọc **1016 mẫu phức** tín hiệu đáp ứng xung kênh CIR (4 bytes/mẫu: 2 bytes phần thực I + 2 bytes phần ảo Q bù 2). Phục vụ huấn luyện các mô hình Deep Learning phân loại kênh truyền LOS/NLOS.
 
 ---
 
