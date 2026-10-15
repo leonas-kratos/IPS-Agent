@@ -62,3 +62,59 @@ Khi người dùng yêu cầu phân tích, so sánh hoặc giải thích một c
    * *Độ trễ thời gian thực (Real-time latency ms).*
    * *Khả năng thích ứng với môi trường chưa từng học (Generalization).*
 3. **Đưa ra Đề xuất Kỹ thuật (Actionable Recommendation):** Luôn kết luận bằng giải pháp khả thi nhất để nhóm nghiên cứu áp dụng vào hệ thống thực tế của lab.
+
+
+---
+
+## 5. Danh Mục Tri Thức Nén Toàn Bộ Repo (48 Bài Báo & Mã Nguồn CAR)
+
+- **Bài báo [1]:** *A Comprehensive Study and Performance Evaluation of Indoor Positioning Methods in BLE and UWB Technologies* (2025) | Bộ lọc Kalman / EKF / UKF | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [2]:** *A Lightweight CIR-Based CNN With MLP for NLOS LOS Identification in a UWB Positioning System* (2023) | Deep Learning & AI | Best Error: `only improve the accuracy by less than 1%`
+- **Bài báo [3]:** *A Seamless Pedestrian Localization System Based on GNSS IMU UWB MAP Integration* (2025) | Bộ lọc Kalman / EKF / UKF | Best Error: `In transitional areas, RMSE improved by 4.61% (10`
+- **Bài báo [4]:** *A Tightly Coupled Adaptive EKF for Indoor 3-D Positioning With Linear Acceleration Compensation* (2025) | Bộ lọc Kalman / EKF / UKF | Best Error: `accuracy improves markedly, along with a 58.32% reduction`
+- **Bài báo [5]:** *Accurate Multiclass NLOS Channels Identification in UWB Indoor Positioning System-Based Deep Neural Network* (2024) | Deep Learning & AI | Best Error: `delivering an accuracy of 99.9% within a processing time of one second,`
+- **Bài báo [6]:** *An Adaptive IMU UWB Fusion Method for NLOS Indoor Positioning and Navigation* (2023) | Deep Learning & AI | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [7]:** *An Indoor UWB NLOS Correction Positioning Method Based on Anchor LOS NLOS Map* (2023) | Deep Learning & AI | Best Error: `positioning accuracy is improved by 69.30%, and compared with the robust Kalman fi`
+- **Bài báo [8]:** *An Indoor and Outdoor Seamless Positioning System for Low-Cost UGV Using PPP INS UWB Tightly Coupled Integration* (2023) | Bộ lọc Kalman / EKF / UKF | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [9]:** *Characterization of AGV Localization System in Industrial Scenarios Using UWB Technology* (2023) | Bộ lọc Kalman / EKF / UKF | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [10]:** *Compensating the NLoS Occlusion Errors of UWB for Pedestrian Localization With MIMU* (2023) | Deep Learning & AI | Best Error: `(RMSE) of the positioning result of 4.0 cm`
+- **Bài báo [11]:** *Comprehensive Evaluation of Robust and Tight Integration of UWB and Low-Cost IMU* (2023) | Deep Learning & AI | Best Error: `accuracy better than 20 cm still can be obtained by using such`
+- **Bài báo [12]:** *Dynamic Feasible Region-Based IMU UWB Fusion Method for Indoor Positioning* (2024) | Bộ lọc Kalman / EKF / UKF | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [13]:** *Dynamic Real-Time Anchor Selection for Accurate UWB Indoor Positioning-Based Deep Neural Networks* (2025) | Deep Learning & AI | Best Error: `0051m2 , high accuracy in identifying anchor channels of 99.44%, with`
+- **Bài báo [14]:** *Enhance UWB Performance Using Dynamic AI-Enabled Approach* (2025) | Deep Learning & AI | Best Error: `8% accuracy and 93.5% accuracy of channel estimation in`
+- **Bài báo [15]:** *Enhanced Indoor Pedestrian Tracking Using UWB PDR Fusion and NLOS Error Mitigation* (2025) | Deep Learning & AI | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [16]:** *Hard Sample Meta-Learning for CIR NLOS Identification in UWB Positioning* (2025) | Deep Learning & AI | Best Error: `to achieve an accuracy of 88.24% when performing UWB`
+- **Bài báo [17]:** *High-Precision UWB Sensor-Based Real-Time Locating System for Rodent Behavioral Studies* (2025) | Deep Learning & AI | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [18]:** *Improving the Localization Accuracy and Robustness of a UWB System Using VB-CSRUKF and RTS in Harsh Underground NLOS Environments* (2024) | Bộ lọc Kalman / EKF / UKF | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [19]:** *Indoor Positioning Systems Based on a Modified Matrix-Weighted Fusion Estimator With Multipath and NLOS Mitigation* (2024) | Bộ lọc Kalman / EKF / UKF | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [20]:** *Inverse distance weight-assisted particle swarm optimized indoor localization* (2024) | Deep Learning & AI | Best Error: `IDWPSOInLoc achieves a mean positioning accuracy of 2.477 meters in the local environment experimen`
+- **Bài báo [21]:** *Multi-Tag UWB Localization With SpatialTemporal Attention Graph Neural Network* (2024) | Deep Learning & AI | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [22]:** *Multiple Anchors and RIS-Aided Localization Method in Complex NLOS Environments* (2024) | Deep Learning & AI | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [23]:** *NLOS Identification and Ranging Trustworthiness for Indoor Positioning With LLM-Based UWBIMU Fusion* (2025) | Deep Learning & AI | Best Error: `NLOS identification accuracy above 80% [13], [14]`
+- **Bài báo [24]:** *Novel Classification Method to Predict the Accuracy of UWB Ranging Estimates* (2024) | Bộ lọc Kalman / EKF / UKF | Best Error: `obtain ranging errors under 15 cm in clear LOS conditions,`
+- **Bài báo [25]:** *ATC Final manuscript* (2023+) | Deep Learning & AI | Best Error: `(RMSE) of 146.9 mm, improving by 33`
+- **Bài báo [26]:** *ATC John* (2023+) | Deep Learning & AI | Best Error: `The overall RMSE is reduced to 146.5 mm—a ∼47%`
+- **Bài báo [27]:** *JEC remake round 1 no marking* (2024) | Bộ lọc Kalman / EKF / UKF | Best Error: `with 10 particles, yielding an RMSE of 56.9 mm while maintaining a high sampling rate`
+- **Bài báo [28]:** *NCKH 2026* (2023) | Bộ lọc Kalman / EKF / UKF | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [29]:** *REV 2025 the last* (2023+) | Bộ lọc Kalman / EKF / UKF | Best Error: `hơn, với RMSE dao động trong khoảng 53 ∼ 80 mm ở toàn`
+- **Bài báo [30]:** *Parallel Deep Learning for NLOS Detection and Error Mitigation in UWB Positioning* (2025) | Deep Learning & AI | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [31]:** *Pedestrian and Vehicle Area Positioning With Multiple UWB Signals* (2024) | Bộ lọc Kalman / EKF / UKF | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [32]:** *Performance Analysis of Standalone UWB Positioning Inside Forest Canopy* (2024) | Bộ lọc Kalman / EKF / UKF | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [33]:** *Range-Aided LiDAR Cooperative Localization and Mapping* (2024) | Bộ lọc Kalman / EKF / UKF | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [34]:** *Research on UWB NLOS Identification and Mitigation Methods Based on Gramian Angular Field and Hybrid Fusion Neural Network* (2025) | Deep Learning & AI | Best Error: `accuracy exceeding 95%`
+- **Bài báo [35]:** *Robust LOS NLOS Identification for UWB Signals Using Improved Fuzzy Decision Tree Under Volatile Indoor Conditions* (2023) | Deep Learning & AI | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [36]:** *Self-Supervised Deep Location and Ranging Error Correction for UWB Localization* (2023) | Deep Learning & AI | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [37]:** *Temporal Convolutional Neural Network UWB Positioning Method Based on SimCLR-CIR-SC Autonomous Classification* (2025) | Deep Learning & AI | Best Error: `57 m with three anchors, enhancing the positioning accuracy by at least 31.3% compared to four`
+- **Bài báo [38]:** *Through-Wall Multi-Person Action Recognition Using Enhanced YOLOv5 and IR-UWB Radar* (2025) | Deep Learning & AI | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [39]:** *ToF-Based Indoor Localization for Harsh Environments A Continuous Environment Sensing Framework* (2025) | Deep Learning & AI | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [40]:** *Transfer Learning for UWB Error Correction and NLOS Classification in Multiple Environments* (2024) | Deep Learning & AI | Best Error: `In line-of-sight (LOS) environments, UWB positioning errors in the order of 1–10 cm can`
+- **Bài báo [41]:** *UWBIMUOdometer Fusion for Simultaneous Calibration and Localization* (2025) | Bộ lọc Kalman / EKF / UKF | Best Error: `lab dataset, identification accuracy increased by 5.5%, with`
+- **Bài báo [42]:** *UWB LOS NLOS Identification Using Spatio-Temporal Deep Learning* (2026) | Deep Learning & AI | Best Error: `achieves an overall accuracy of 97.43%`
+- **Bài báo [43]:** *UWB LiDAR Tightly Coupled Positioning Algorithm Based on ISSA Optimized Particle Filter* (2024) | Bộ lọc Kalman / EKF / UKF | Best Error: `Moreover, the proposed method improves the positioning accuracy by 69.16% and 59`
+- **Bài báo [44]:** *UWB NLOS Identification and Mitigation Based on Gramian Angular Field and Parallel Deep Learning Model* (2023) | Deep Learning & AI | Best Error: `OS binary classification and NLOS multiclassification, with accuracy over 96%`
+- **Bài báo [45]:** *UWB NLOS Recognition Based on Improved Convolutional Neural Network Assisted by Wavelet Analysis and Gramian Angular Field* (2023) | Deep Learning & AI | Best Error: `classification accuracy is 69.98% and 79`
+- **Bài báo [46]:** *UWB Sensor-Based Indoor LOS NLOS Localization With Support Vector Machine Learning* (2023) | Bộ lọc Kalman / EKF / UKF | Best Error: `the identification accuracy will increase from 90% to 91`
+- **Bài báo [47]:** *Uncertainty-Aware UWB LiDAR INS Tightly Coupled Fusion Pose Estimation via Filtering Approach* (2024) | Bộ lọc Kalman / EKF / UKF | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+- **Bài báo [48]:** *Vehicle Cooperative Localization Based on UWB Technology in GNSS-Denied Environments* (2025) | Deep Learning & AI | Best Error: `Giảm thiểu sai số NLOS và cải thiện độ ổn định`
+
+- **Mã nguồn hệ thống:** check_serial_format.py, collect_data_trajec.py, realtime_ai_lse.py, realtime_ekf.py, realtime_fgoekf.py, realtime_lse.py, realtime_positioning.py, uwb_common.py
