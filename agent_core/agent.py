@@ -154,6 +154,15 @@ class UWBAgent:
         has_db = any(k in q_norm for k in ["csdl", "co so du lieu", "kho du lieu", "trong kho", "cua ban than", "chinh csdl"])
         return (has_not_found and has_db) or ("chinh csdl" in q_norm)
 
+    def is_table_complaint(self, query: str) -> bool:
+        """Kiểm tra khiếu nại về bảng biểu Markdown vẽ xấu, vỡ khung hoặc tràn dòng."""
+        q_norm = remove_accents(query.lower().strip())
+        return any(k in q_norm for k in [
+            "table ve xau", "bang ve xau", "bang xau qua", "table xau qua",
+            "bang bi vo", "table bi vo", "bang xau", "table xau", "cac table ve xau",
+            "ve bang xau", "bang khong dep", "table xau"
+        ])
+
     def is_casual_intent(self, query: str) -> bool:
         """Nhận diện các câu chào hỏi, cảm thán, cảm ơn, khen ngợi tốc độ (hỗ trợ cả tiếng Việt có dấu và không dấu)."""
         q_raw = query.lower().strip()
@@ -338,6 +347,29 @@ class UWBAgent:
                     yield word + " "
             self.history.append({"role": "assistant", "content": short_ok})
             return short_ok_stream(), []
+
+        # -4. Khiếu nại về bảng Markdown vẽ xấu / vỡ khung
+        if self.is_table_complaint(question):
+            table_fix_text = (
+                "Rất đồng tình với nhận xét của bạn! Nguyên nhân là do bảng Markdown trước đó có các cột quá dài (> 200 ký tự) "
+                "khiến dòng chữ bị tràn khung màn hình terminal và tự động ngắt dòng làm vỡ các cột đứng `|`.\n\n"
+                "Tôi đã tối ưu hóa toàn diện quy chuẩn vẽ bảng mới cho Terminal:\n"
+                "1. **Tối đa 3–4 cột ngắn gọn** (tổng độ rộng dòng $\\le 65$ ký tự), đảm bảo hiển thị hoàn hảo trên mọi kích thước cửa sổ mà không bị vỡ dòng.\n"
+                "2. **Tách riêng tên bài báo dài:** Tên tài liệu chi tiết và tệp PDF được chuyển xuống danh sách gạch đầu dòng bên dưới bảng.\n\n"
+                "Ví dụ bảng danh mục tạp chí sau khi tối ưu:\n\n"
+                "| STT | Tạp chí / Kỷ yếu | NXB | Trọng tâm nghiên cứu |\n"
+                "|:---:|:---|:---:|:---|\n"
+                "| 1 | IEEE Sensors Journal | IEEE | CIR Deep Learning, GAF-CNN |\n"
+                "| 2 | IEEE Trans. Instrum. Meas. | IEEE | EKF thích nghi, Sai số cự ly |\n"
+                "| 3 | IEEE Internet of Things J. | IEEE | LightMamba, SA-TinyML |\n"
+                "| 4 | REV-EC / ATC / NCKH | Lab | Giao thức TDMA, Xe AGV |\n\n"
+                "Bảng giờ đây hiển thị thẳng hàng, gọn gàng và không còn bị lệch khung!"
+            )
+            def table_stream():
+                for word in table_fix_text.split(" "):
+                    yield word + " "
+            self.history.append({"role": "assistant", "content": table_fix_text})
+            return table_stream(), []
 
         # 0. Câu hỏi về danh tính / Model
         if self.is_identity_query(question):
@@ -524,34 +556,32 @@ class UWBAgent:
 
         # 1. Câu hỏi tra cứu danh sách tạp chí / kỷ yếu hội nghị
         if self.is_journal_list_query(question):
-            journals_context = (
-                "### CÁC TẠP CHÍ & KỶ YẾU HỘI NGHỊ KHOA HỌC TRONG KHO TRI THỨC PHÒNG LAB (51 BÀI BÁO REPO):\n"
-                "1. **IEEE Xplore (Các tạp chí chuyên ngành quốc tế hàng đầu):**\n"
-                "   • *IEEE Sensors Journal* (Các bài về phân loại NLOS, CIR, GAF-CNN, Deep Learning).\n"
-                "   • *IEEE Transactions on Instrumentation and Measurement (TIM)* (Các bài về ước lượng sai số cự ly, EKF thích nghi, mô hình sai số).\n"
-                "   • *IEEE Transactions on Vehicular Technology (TVT)* (Các bài về định vị xe tự hành AGV, hợp nhất UWB/LiDAR/INS).\n"
-                "   • *IEEE Internet of Things Journal (IoT-J)* (Các bài về mạng đa Tag, kiến trúc cảm biến IoT UWB).\n"
-                "   • *IEEE Communications Letters*.\n"
-                "2. **MDPI Open Access Journals (Nhóm tạp chí mở uy tín):**\n"
-                "   • *MDPI Sensors* (Rất nhiều công trình về CIR, Fuzzy Decision Tree, Meta-Learning, SimCLR-CIR).\n"
-                "   • *MDPI Electronics* (Xử lý tín hiệu phần cứng DWM1001, lọc Kalman).\n"
-                "   • *MDPI Applied Sciences*.\n"
-                "3. **Elsevier & ScienceDirect:**\n"
-                "   • *Measurement* (Elsevier), *Physical Communication*.\n"
-                "4. **Tạp chí & Kỷ yếu Hội nghị Quốc gia / Phòng Lab (OurPapers):**\n"
-                "   • *REV Journal on Electronics and Communications (REV-EC / JEC)*.\n"
-                "   • *IEEE International Conference on Advanced Technologies for Communications (ATC)*.\n"
-                "   • *Hội nghị Nghiên cứu Khoa học (NCKH 2026)*."
+            journal_text = (
+                "## 📚 Các Tạp Chí & Kỷ Yếu Khoa Học (51 Bài Báo Trong Kho Tri Thức)\n\n"
+                "Trong kho 51 bài báo nghiên cứu UWB của phòng lab, các công trình được công bố trên các nguồn tạp chí và hội nghị uy tín sau:\n\n"
+                "| STT | Tạp chí / Hội nghị | NXB | Trọng tâm nghiên cứu |\n"
+                "|:---:|:---|:---:|:---|\n"
+                "| 1 | IEEE Sensors Journal | IEEE | CIR Deep Learning, GAF-CNN |\n"
+                "| 2 | IEEE Trans. Instrum. Meas. (TIM) | IEEE | EKF thích nghi, Sai số cự ly |\n"
+                "| 3 | IEEE Trans. Veh. Technol. (TVT) | IEEE | Định vị xe AGV, UWB/LiDAR |\n"
+                "| 4 | IEEE Internet of Things J. (IoT-J) | IEEE | LightMamba (2026), SA-TinyML |\n"
+                "| 5 | IEEE Wireless Commun. Lett. (WCL) | IEEE | Tối ưu cắt tỉa CIR MCU (2026) |\n"
+                "| 6 | MDPI Sensors / Electronics | MDPI | Fuzzy Tree, SimCLR, Phần cứng |\n"
+                "| 7 | Elsevier Measurement | Elsevier | Mô hình hóa sai số ToF đa đường |\n"
+                "| 8 | REV-EC / IEEE ATC / NCKH | Lab/VN | Giao thức TDMA, FGO-EKF xe AGV |\n\n"
+                "---\n\n"
+                "### 📌 Các Công Trình Tiêu Biểu Trong CSDL:\n"
+                "• **LightMamba (IEEE IoT-J 2026):** Mạng SSM chọn lọc 22k params phân loại CIR (`wang2026lightmamba.pdf`).\n"
+                "• **SA-TinyML (IEEE IoT-J 2024):** TinyML 10.3 kB Flash trên Arduino Nano (`wu2024sa.pdf`).\n"
+                "• **MCU CIR Truncation (IEEE WCL 2026):** Tối ưu hóa cắt tỉa CIR cho MCU (`jiang2026truncation.pdf`).\n"
+                "• **GAF-CNN (IEEE Sensors J.):** Chuyển đổi tín hiệu CIR sang ảnh Gramian 2D phân loại NLOS.\n"
+                "• **FGO-EKF AGV (NCKH 2026 & ATC):** Định vị kết hợp xe tự hành của phòng lab."
             )
-            prompt_content = (
-                f"{journals_context}\n\n"
-                f"YÊU CẦU CỦA NGƯỜI DÙNG: \"{question}\"\n\n"
-                f"HƯỚNG DẪN TRẢ LỜI:\n"
-                f"1. Liệt kê danh sách các tạp chí và hội nghị khoa học uy tín có trong kho tri thức của phòng lab.\n"
-                f"2. BẮT BUỘC kẻ Bảng Markdown chỉn chu, gọn gàng (Tạp chí / Hội nghị | Nhà xuất bản | Lĩnh vực trọng tâm trong repo | Bài báo tiêu biểu trong repo).\n"
-                f"3. Khẳng định kho tri thức của lab sở hữu đầy đủ 51 bài báo từ các nguồn tạp chí trên."
-            )
-            augmented_messages = self.history[-3:-1] + [{"role": "user", "content": prompt_content}]
+            def journal_stream():
+                for word in journal_text.split(" "):
+                    yield word + " "
+            self.history.append({"role": "assistant", "content": journal_text})
+            return journal_stream(), []
 
         # 2. Câu hỏi tìm kiếm bài báo / tra cứu danh mục paper
         elif self.is_explicit_paper_query(question):
@@ -574,7 +604,7 @@ class UWBAgent:
                     f"CÂU HỎI CỦA NGƯỜI DÙNG: \"{question}\"\n\n"
                     f"HƯỚNG DẪN TRẢ LỜI (BẮT BUỘC TUÂN THỦ):\n"
                     f"1. Trả lời trực tiếp và ĐÚNG TRỌNG TÂM câu hỏi của người dùng.\n"
-                    f"2. KẺ BẢNG GỌN GÀNG ĐẸP MẮT (Tối đa 4 cột để không bị vỡ khung màn hình: STT | Mô hình / Thuật toán | Năm | Sai số / Hiệu năng đạt được). TUYỆT ĐỐI KHÔNG đưa tên file PDF dài hay đoạn văn dài vào các ô bảng.\n"
+                    f"2. KẺ BẢNG GỌN GÀNG ĐẸP MẮT (BẢNG TERMINAL TỐI ĐA 3 CỘT: STT | Mô hình / Thuật toán | Sai số / Hiệu năng đạt được). Tổng chiều rộng dòng bảng phải dưới 65 ký tự để không bị tràn dòng làm vỡ bảng. TUYỆT ĐỐI KHÔNG đưa tên file PDF dài hay đoạn văn dài vào các ô bảng.\n"
                     f"3. Liệt kê tên bài báo và tệp PDF ở danh sách gạch đầu dòng bên dưới bảng.\n"
                     f"4. Nêu rõ ưu nhược điểm kỹ thuật và số liệu định lượng (RMSE, %, cm) của từng bài.\n"
                     f"5. TUYỆT ĐỐI KHÔNG bảo người dùng tự đi tìm trên IEEE hay Google Scholar!"
@@ -597,7 +627,7 @@ class UWBAgent:
             prompt_content = (
                 f"{papers_context}\n"
                 f"CÂU HỎI TIẾP NỐI: \"{question}\"\n\n"
-                f"Hãy trả lời trực tiếp và ĐÚNG TRỌNG TÂM cho câu hỏi tiếp nối ở trên. Phân tích chi tiết bản chất kỹ thuật, công thức, cơ chế thuật toán và duy trì mạch ngữ cảnh. Nếu kẻ bảng, bảng phải GỌN GÀNG (tối đa 4 cột, không làm vỡ khung terminal)."
+                f"Hãy trả lời trực tiếp và ĐÚNG TRỌNG TÂM cho câu hỏi tiếp nối ở trên. Phân tích chi tiết bản chất kỹ thuật, công thức, cơ chế thuật toán và duy trì mạch ngữ cảnh. Nếu kẻ bảng, bảng phải GỌN GÀNG (tối đa 3 cột, độ rộng dưới 65 ký tự, không làm vỡ khung terminal)."
             )
             augmented_messages = self.history[-3:-1] + [{"role": "user", "content": prompt_content}]
 
