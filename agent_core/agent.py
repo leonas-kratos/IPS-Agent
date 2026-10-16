@@ -163,6 +163,16 @@ class UWBAgent:
             "ve bang xau", "bang khong dep", "table xau"
         ])
 
+    def is_recent_papers_query(self, query: str) -> bool:
+        """Kiểm tra câu hỏi tra cứu các bài báo trong giai đoạn 2025–2026 hoặc bài nghiên cứu mới nhất."""
+        q_norm = remove_accents(query.lower().strip())
+        year_triggers = [
+            "2025", "2026", "nam 2025", "nam 2026", "2025 den 2026", "2025-2026",
+            "trong nam 2025", "trong nam 2026", "cac bai 2025", "cac bai 2026",
+            "bai bao 2025", "bai bao 2026", "the trong nam 2025", "the trong nam 2026"
+        ]
+        return any(t in q_norm for t in year_triggers)
+
     def is_casual_intent(self, query: str) -> bool:
         """Nhận diện các câu chào hỏi, cảm thán, cảm ơn, khen ngợi tốc độ (hỗ trợ cả tiếng Việt có dấu và không dấu)."""
         q_raw = query.lower().strip()
@@ -183,13 +193,14 @@ class UWBAgent:
             "dinh vi", "nlos", "los", "anchor", "tag", "dwm1001", "dw1000", "toa do",
             "sai so", "rmse", "thanh ghi", "kalman", "lse", "fusion", "imu", "gdop",
             "twr", "ds-twr", "ss-twr", "car", "raspberry", "pi", "baud", "tap chi", "journal",
-            "kien truc", "phuong phap", "giai thuat", "thuat toan"
+            "kien truc", "phuong phap", "giai thuat", "thuat toan", "2025", "2026"
         ]
         if any(k in q_norm for k in tech_words):
             return False
 
         casual_phrases = [
             "xin chao", "chao", "chao ban", "hi", "hello", "helo", "alo", "e",
+            "hey", "hey yo", "yo", "yo ban", "heyy", "hi ban", "hello ban", "alo ban",
             "cam on", "thank", "thanks", "tam biet", "bye",
             "ok", "oke", "duoc roi", "tot roi", "hay qua", "gioi qua", "giup toi", "help",
             "ghe", "ghe vay", "kinh", "kinh the", "kinh vay", "vai", "uay", "wow",
@@ -583,6 +594,41 @@ class UWBAgent:
             self.history.append({"role": "assistant", "content": journal_text})
             return journal_stream(), []
 
+        # 1.1. Câu hỏi tra cứu các bài báo mới nhất giai đoạn 2025–2026
+        if self.is_recent_papers_query(question):
+            recent_text = (
+                "## 📅 Các Bài Báo Khoa Học Xuất Bản Năm 2025 – 2026 (19 Bài Báo)\n\n"
+                "Trong kho 51 bài báo nghiên cứu của phòng lab, có tới **19 công trình** được công bố trong giai đoạn 2025–2026, tập trung vào 3 hướng đột phá chính: **Mô hình Không gian Trạng thái (SSM / Mamba)**, **TinyML trên Vi điều khiển (MCU)** và **Học Siêu Thích Nghi (Meta-Learning)**:\n\n"
+                "| Năm | Mô hình / Thuật toán | Nguồn / Tạp chí | Hiệu năng / Đột phá |\n"
+                "|:---:|:---|:---:|:---|\n"
+                "| 2026 | LightMamba (SSM 22k params) | IEEE IoT-J | F1: 95.20%, CPU 1.2 ms |\n"
+                "| 2026 | Cắt tỉa CIR triển khai MCU | IEEE WCL | Tối ưu hóa kích thước CIR |\n"
+                "| 2026 | Spatio-Temporal Deep Learning | Preprint | Phân loại LOS/NLOS đa chiều |\n"
+                "| 2026 | FGO-EKF AGV (Lab công bố) | NCKH 2026 | Định vị kết hợp xe AGV |\n"
+                "| 2025 | Hard Sample Meta-Learning | IEEE IoT-J | Accuracy 88.24% phòng mới |\n"
+                "| 2025 | Dynamic Anchor Selection | IEEE Access | DNN chọn Anchor thời gian thực |\n"
+                "| 2025 | SimCLR-CIR TCN Network | MDPI Sensors | Học tự giám sát đặc trưng CIR |\n"
+                "| 2025 | GAF & Hybrid Fusion Net | MDPI Sensors | Ma trận Gramian 2D phân loại |\n"
+                "| 2025 | LLM-Based UWB/IMU Fusion | IEEE Trans. | LLM đánh giá độ tin cậy cự ly |\n"
+                "| 2025 | REV-EC Thực nghiệm Lab | REV-EC 2025 | RMSE 53 ~ 80 mm quỹ đạo |\n\n"
+                "---\n\n"
+                "### 📌 Các Công Trình Đột Phá Năm 2025–2026:\n"
+                "• **LightMamba (IEEE IoT-J, 1/3/2026):** *LightMamba: A Resource-Efficient Deep-Learning Method for UWB NLOS Identification Based on Selective State-Space Modeling* (`wang2026lightmamba.pdf`).\n"
+                "• **MCU CIR Truncation (IEEE WCL, 2026):** *Optimizing UWB CIR Truncation for NLOS Identification on MCU Deployment* (`jiang2026truncation.pdf`).\n"
+                "• **Hard Sample Meta-Learning (IEEE IoT-J, 5/2025):** Giải quyết suy giảm độ chính xác khi chuyển sang phòng mới (`Hard_Sample_Meta-Learning_for_CIR_NLOS_Identification_in_UWB_Positioning.pdf`).\n"
+                "• **TCN SimCLR-CIR (2025):** Tự học biểu diễn CIR không cần gán nhãn thủ công nhiều (`Temporal_Convolutional_Neural_Network_UWB_Positioning_Method_Based_on_SimCLR-CIR-SC_Autonomous_Classification.pdf`).\n"
+                "• **Hội nghị NCKH 2026 & REV 2025:** Hai công trình thực nghiệm xe AGV và mạng định vị đa Tag của phòng lab (`NCKH_2026.pdf`, `REV_2025_the_last.pdf`)."
+            )
+            def recent_stream():
+                for word in recent_text.split(" "):
+                    yield word + " "
+            self.history.append({"role": "assistant", "content": recent_text})
+            return recent_stream(), [
+                {"source_type": "repo_paper", "filename": "wang2026lightmamba.pdf"},
+                {"source_type": "repo_paper", "filename": "jiang2026truncation.pdf"},
+                {"source_type": "repo_paper", "filename": "NCKH_2026.pdf"}
+            ]
+
         # 2. Câu hỏi tìm kiếm bài báo / tra cứu danh mục paper
         elif self.is_explicit_paper_query(question):
             matched_papers = self.find_relevant_repo_papers(question, top_k=6)
@@ -647,12 +693,15 @@ class UWBAgent:
                 self.history.append({"role": "assistant", "content": speed_reply})
                 return speed_stream(), []
 
-            casual_prompt = (
-                f"Người dùng vừa gửi câu chào hoặc biểu cảm: \"{question}\".\n"
-                f"Hãy phản hồi bằng tiếng Việt tự nhiên, thân thiện, lịch sự và tự tin với tư cách Kỹ sư Nghiên cứu Cấp cao IPS UWB. "
-                f"Nhắc ngắn gọn rằng bạn sẵn sàng hỗ trợ giải đáp chuyên sâu về 2 hệ thống định vị (CIR_SYSTEM, RING_Tag), hệ thống xe CAR hoặc 51 bài báo trong lab."
+            greeting_text = (
+                "Xin chào bạn! Tôi là IPS-Agent — Trợ lý Nghiên cứu Cấp cao về IPS UWB của phòng lab. "
+                "Hôm nay bạn cần tìm hiểu về bài báo khoa học hay hệ thống định vị nào?"
             )
-            augmented_messages = self.history[-3:-1] + [{"role": "user", "content": casual_prompt}]
+            def greeting_stream():
+                for word in greeting_text.split(" "):
+                    yield word + " "
+            self.history.append({"role": "assistant", "content": greeting_text})
+            return greeting_stream(), []
 
         # 5. Các câu hỏi kỹ thuật thông thường khác
         else:
