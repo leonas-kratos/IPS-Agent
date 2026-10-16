@@ -708,5 +708,50 @@
     "preview": "34882  IEEE SENSORS JOURNAL, VOL. 25, NO. 18, 15 SEPTEMBER 2025  Vehicle Cooperative Localization Based on UWB Technology in GNSS-Denied Environments Hualin Yao, Xiaomei Qu , Liangkun Wu, and Yirong Wu  Abstract—The accurate vehicle positioning is cr",
     "uses_cir": false,
     "uses_sensor_fusion": true
+  },
+  {
+    "filename": "wang2026lightmamba.pdf",
+    "relative_path": "Paper/wang2026lightmamba.pdf",
+    "title": "LightMamba: A Resource-Efficient Deep-Learning Method for UWB NLOS Identification Based on Selective State-Space Modeling",
+    "year": "2026",
+    "journal": "IEEE JIOT",
+    "doi": "10.1109/JIOT.2025.3641826",
+    "category": "Deep Learning & AI (Mamba SSM)",
+    "method": "LightMamba: Dual-Branch CIR/Auxiliary Fusion + Selective State-Space Model (SSM) with Dynamic Path Selection",
+    "best_metric": "F1-Score 95.20% (OIUD), 92.26% (eWINE) with only 22k parameters (96% parameter reduction vs LSTM)",
+    "is_our_paper": false,
+    "preview": "IEEE INTERNET OF THINGS JOURNAL, VOL. 13, NO. 5, MARCH 2026. LightMamba: A Resource-Efficient Deep-Learning Method for UWB NLOS Identification Based on Selective State-Space Modeling. Tao Wang, Yuanming Shu, Lulu Qiao, Dong Ding, Guangxue Li.",
+    "uses_cir": true,
+    "uses_sensor_fusion": true
+  },
+  {
+    "filename": "jiang2026truncation.pdf",
+    "relative_path": "Paper/jiang2026truncation.pdf",
+    "title": "Optimizing UWB CIR Truncation for NLOS Identification on MCU Deployment",
+    "year": "2026",
+    "journal": "IEEE WCL",
+    "doi": "10.1109/LCOMM.2026",
+    "category": "TinyML & MCU Deployment",
+    "method": "Constrained and quantifiable optimization for optimal UWB CIR Truncation on microcontrollers (MCU)",
+    "best_metric": "Optimal balance between MCU memory/latency and NLOS identification accuracy",
+    "is_our_paper": false,
+    "preview": "IEEE COMMUNICATIONS LETTERS, VOL. 30, 2026. Optimizing UWB CIR Truncation for NLOS Identification on MCU Deployment. Yuqing Jiang, Hanbo Liu, Zhangyi Yang, Jiaxin Wu, Wei Dong.",
+    "uses_cir": true,
+    "uses_sensor_fusion": false
+  },
+  {
+    "filename": "wu2024sa.pdf",
+    "relative_path": "Paper/wu2024sa.pdf",
+    "title": "Self-Attention-Assisted TinyML With Effective Representation for UWB NLOS Identification",
+    "year": "2024",
+    "journal": "IEEE JIOT",
+    "doi": "10.1109/JIOT.2024.3385714",
+    "category": "TinyML & Self-Attention",
+    "method": "Self-Attention TinyML with Quantization and Effective CIR Representation",
+    "best_metric": "State-of-the-art accuracy with minimal memory footprint on edge MCU devices",
+    "is_our_paper": false,
+    "preview": "IEEE INTERNET OF THINGS JOURNAL, VOL. 11, NO. 15, 1 AUGUST 2024. Self-Attention-Assisted TinyML With Effective Representation for UWB NLOS Identification. Yifeng Wu, Xu He, Lingfei Mo, Qing Wang.",
+    "uses_cir": true,
+    "uses_sensor_fusion": true
   }
 ]
