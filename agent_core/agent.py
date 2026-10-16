@@ -308,6 +308,37 @@ class UWBAgent:
         self.history.append({"role": "user", "content": question})
         sources = []
 
+        q_raw = question.strip()
+        q_norm = remove_accents(q_raw.lower())
+
+        # -1. Xử lý dấu câu đơn lẻ hoặc ký tự rỗng
+        if not q_raw or q_raw in [".", ",", "...", "!", "?", "..", "....", ":", ";"]:
+            empty_text = "Dạ, tôi có thể hỗ trợ gì cho bạn về 2 hệ thống định vị UWB, hệ thống xe tự hành hay 51 bài báo khoa học của phòng lab?"
+            def empty_stream():
+                for word in empty_text.split(" "):
+                    yield word + " "
+            self.history.append({"role": "assistant", "content": empty_text})
+            return empty_stream(), []
+
+        # -2. Xử lý yêu cầu trả lời nghiêm ngặt (ví dụ: 'reply only ok', 'chỉ nói ok')
+        if q_norm in [
+            "reply only ok", "only ok", "chi noi ok", "chi tra loi ok",
+            "noi ok thoi", "chi can noi ok", "tra loi ok", "chi noi ok thoi", "chi noi ok nha"
+        ]:
+            def ok_stream():
+                yield "OK"
+            self.history.append({"role": "assistant", "content": "OK"})
+            return ok_stream(), []
+
+        # -3. Xử lý xác nhận ngắn như 'ok', 'oke'
+        if q_norm in ["ok", "oke", "ok nha", "ok nhe", "oke nha", "da ok", "ok roi", "duoc roi"]:
+            short_ok = "OK bạn! Tôi có thể hỗ trợ giải đáp hoặc phân tích nội dung kỹ thuật nào tiếp theo cho bạn?"
+            def short_ok_stream():
+                for word in short_ok.split(" "):
+                    yield word + " "
+            self.history.append({"role": "assistant", "content": short_ok})
+            return short_ok_stream(), []
+
         # 0. Câu hỏi về danh tính / Model
         if self.is_identity_query(question):
             identity_text = (
@@ -318,7 +349,7 @@ class UWBAgent:
                 "   • *Hệ thống Định Vị 2:* Mạng Định Vị Đa Tag Vòng Token Ring (`System/RING_Tag/`).\n"
                 "2. **1 Hệ Thống Xe Tự Hành**:\n"
                 "   • *Hệ thống Xe:* Xe Tự Hành Robot AGV (`System/CAR/`) với 2 cảm biến bản thể (IMU & Encoder), Raspberry Pi 4 và DWM1001C Tag.\n"
-                "3. **Kho 48 Bài Báo Khoa Học UWB**: Bao gồm các công trình nghiên cứu hàng đầu về tín hiệu CIR, Deep Learning nhận dạng NLOS, bộ lọc Kalman thích nghi (EKF/UKF) và Tối ưu đồ thị nhân tố (FGO).\n\n"
+                "3. **Kho 51 Bài Báo Khoa Học UWB**: Bao gồm các công trình nghiên cứu hàng đầu về tín hiệu CIR, Deep Learning nhận dạng NLOS, bộ lọc Kalman thích nghi (EKF/UKF) và Tối ưu đồ thị nhân tố (FGO).\n\n"
                 "Bạn có thể yêu cầu tôi tìm kiếm bài báo theo chủ đề, phân tích giải thuật toán học hoặc hướng dẫn mã nguồn thực tế bất cứ lúc nào!"
             )
             def identity_stream():
@@ -494,7 +525,7 @@ class UWBAgent:
         # 1. Câu hỏi tra cứu danh sách tạp chí / kỷ yếu hội nghị
         if self.is_journal_list_query(question):
             journals_context = (
-                "### CÁC TẠP CHÍ & KỶ YẾU HỘI NGHỊ KHOA HỌC TRONG KHO TRI THỨC PHÒNG LAB (48 BÀI BÁO REPO):\n"
+                "### CÁC TẠP CHÍ & KỶ YẾU HỘI NGHỊ KHOA HỌC TRONG KHO TRI THỨC PHÒNG LAB (51 BÀI BÁO REPO):\n"
                 "1. **IEEE Xplore (Các tạp chí chuyên ngành quốc tế hàng đầu):**\n"
                 "   • *IEEE Sensors Journal* (Các bài về phân loại NLOS, CIR, GAF-CNN, Deep Learning).\n"
                 "   • *IEEE Transactions on Instrumentation and Measurement (TIM)* (Các bài về ước lượng sai số cự ly, EKF thích nghi, mô hình sai số).\n"
@@ -518,7 +549,7 @@ class UWBAgent:
                 f"HƯỚNG DẪN TRẢ LỜI:\n"
                 f"1. Liệt kê danh sách các tạp chí và hội nghị khoa học uy tín có trong kho tri thức của phòng lab.\n"
                 f"2. BẮT BUỘC kẻ Bảng Markdown chỉn chu, gọn gàng (Tạp chí / Hội nghị | Nhà xuất bản | Lĩnh vực trọng tâm trong repo | Bài báo tiêu biểu trong repo).\n"
-                f"3. Khẳng định kho tri thức của lab sở hữu đầy đủ 48 bài báo từ các nguồn tạp chí trên."
+                f"3. Khẳng định kho tri thức của lab sở hữu đầy đủ 51 bài báo từ các nguồn tạp chí trên."
             )
             augmented_messages = self.history[-3:-1] + [{"role": "user", "content": prompt_content}]
 
@@ -589,7 +620,7 @@ class UWBAgent:
             casual_prompt = (
                 f"Người dùng vừa gửi câu chào hoặc biểu cảm: \"{question}\".\n"
                 f"Hãy phản hồi bằng tiếng Việt tự nhiên, thân thiện, lịch sự và tự tin với tư cách Kỹ sư Nghiên cứu Cấp cao IPS UWB. "
-                f"Nhắc ngắn gọn rằng bạn sẵn sàng hỗ trợ giải đáp chuyên sâu về 2 hệ thống định vị (CIR_SYSTEM, RING_Tag), hệ thống xe CAR hoặc 48 bài báo trong lab."
+                f"Nhắc ngắn gọn rằng bạn sẵn sàng hỗ trợ giải đáp chuyên sâu về 2 hệ thống định vị (CIR_SYSTEM, RING_Tag), hệ thống xe CAR hoặc 51 bài báo trong lab."
             )
             augmented_messages = self.history[-3:-1] + [{"role": "user", "content": casual_prompt}]
 
