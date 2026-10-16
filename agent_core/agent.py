@@ -127,17 +127,39 @@ class UWBAgent:
             return True
         return False
 
+    def is_classification_arch_query(self, query: str) -> bool:
+        """Kiểm tra câu hỏi chuyên sâu về kiến trúc mạng / mô hình phân loại LOS/NLOS."""
+        q_norm = remove_accents(query.lower().strip())
+        is_arch = any(k in q_norm for k in ["kien truc", "architecture", "mo hinh", "mang no-ron", "neural", "mang gi", "mo hinh nao", "dung kien truc"])
+        is_class = any(k in q_norm for k in ["phan loai", "nhan dang", "classification", "identif", "los/nlos", "nlos", "los", "cir"])
+        return is_arch and is_class
+
+    def is_hsml_query(self, query: str) -> bool:
+        """Kiểm tra câu hỏi giải thích phương pháp Hard Sample Meta-Learning (HSML/MAML)."""
+        q_norm = remove_accents(query.lower().strip())
+        return any(k in q_norm for k in ["hard sample", "meta-learning", "meta learning", "hsml", "maml"])
+
     def is_casual_intent(self, query: str) -> bool:
-        """Nhận diện các câu chào hỏi, cảm thán, cảm ơn, xã giao (hỗ trợ cả tiếng Việt có dấu và không dấu)."""
+        """Nhận diện các câu chào hỏi, cảm thán, cảm ơn, khen ngợi tốc độ (hỗ trợ cả tiếng Việt có dấu và không dấu)."""
         q_raw = query.lower().strip()
         q_norm = remove_accents(q_raw)
+
+        # Nhận diện lời khen tốc độ / hiệu năng phản hồi
+        speed_compliments = [
+            "nhanh the", "nhanh vay", "tra loi nhanh the", "tra loi nhanh vay",
+            "nhanh qua", "sao nhanh the", "nhanh the nhi", "qua nhanh", "gioi the",
+            "hay the", "dinh the", "dinh vay", "dinh chop", "dinh cao", "tam dac"
+        ]
+        if any(sc in q_norm for sc in speed_compliments):
+            return True
 
         # Nếu câu hỏi chứa từ khóa kỹ thuật cụ thể thì không phải câu chào
         tech_words = [
             "bai bao", "paper", "nghien cuu", "tai lieu", "uwb", "cir", "ekf", "fgo",
             "dinh vi", "nlos", "los", "anchor", "tag", "dwm1001", "dw1000", "toa do",
             "sai so", "rmse", "thanh ghi", "kalman", "lse", "fusion", "imu", "gdop",
-            "twr", "ds-twr", "ss-twr", "car", "raspberry", "pi", "baud", "tap chi", "journal"
+            "twr", "ds-twr", "ss-twr", "car", "raspberry", "pi", "baud", "tap chi", "journal",
+            "kien truc", "phuong phap", "giai thuat", "thuat toan"
         ]
         if any(k in q_norm for k in tech_words):
             return False
@@ -151,21 +173,19 @@ class UWBAgent:
             "tot", "tuyet", "dinh", "dinh the", "dinh vay", "xin the", "xin vay"
         ]
         words = q_norm.split()
-        if len(words) <= 4:
-            if any(q_norm == p or q_norm.startswith(p + " ") or q_norm.endswith(" " + p) for p in casual_phrases):
+        if len(words) <= 6:
+            if any(q_norm == p or q_norm.startswith(p + " ") or q_norm.endswith(" " + p) or p in q_norm for p in casual_phrases):
                 return True
         return False
 
     def is_explicit_paper_query(self, query: str) -> bool:
-        """Kiểm tra xem người dùng có thực sự muốn tìm kiếm hoặc tra cứu bài báo khoa học hay không."""
+        """Kiểm tra xem người dùng có thực sự muốn tìm kiếm hoặc tra cứu bài báo khoa học trong repo hay không."""
         q_norm = remove_accents(query.lower().strip())
         paper_triggers = [
-            "bai bao", "paper", "nghien cuu", "tai lieu", "cong bo", "tac gia",
             "tim bai", "danh sach bai", "co bai nao", "liet ke cac bai", "so sanh cac bai",
-            "ourpapers", "nckh", "atc", "jec", "rev", "doc bai", "kho bai bao",
-            "tap chi", "journal", "hoi nghi", "conference", "xuat ban",
-            "phan loai", "nhan dang", "machine learning", "deep learning", "ai/ml",
-            "co paper nao", "co bai nao lam ve", "nhung paper nao"
+            "tim paper", "danh sach paper", "co paper nao", "nhung paper nao", "doc bai",
+            "kho bai bao", "kho paper", "paper ve", "bai bao ve", "cac bai ve", "tim tai lieu ve",
+            "ourpapers", "nckh", "atc", "jec", "rev", "co paper nao lam ve", "cac paper lam ve"
         ]
         return any(t in q_norm for t in paper_triggers)
 
@@ -344,6 +364,58 @@ class UWBAgent:
             self.history.append({"role": "assistant", "content": systems_text})
             return systems_stream(), []
 
+        # 0.3. Câu hỏi về các kiến trúc phân loại LOS/NLOS hiện nay trong UWB
+        if self.is_classification_arch_query(question):
+            arch_text = (
+                "## 🧠 Các Kiến Trúc AI/ML Phổ Biến Trong Phân Loại Kênh UWB (LOS / NLOS)\n\n"
+                "Trong nghiên cứu định vị UWB hiện nay, việc phân loại kênh truyền được chia thành **5 nhóm kiến trúc chính** tùy thuộc vào cách biểu diễn đặc trưng tín hiệu đáp ứng xung kênh CIR:\n\n"
+                "| STT | Họ Kiến Trúc | Định Dạng Dữ Liệu Đầu Vào | Đặc Tính Kỹ Thuật & Hiệu Năng |\n"
+                "|:---:|:---|:---|:---|\n"
+                "| **1** | **1D-CNN (Mạng Tích Chập 1D)** | Vector 1D CIR thô (50–100 mẫu quanh First Path) + 7 PHY metadata | • Siêu nhẹ, tham số ít (< 50k params), độ trễ cực thấp (< 1 ms).<br>• Chạy thời gian thực mượt mà trên nhúng (Raspberry Pi 4 / STM32).<br>• *Tiêu biểu:* Mô hình Tiny 1D-CNN Pure NumPy trong `System/CAR/`. |\n"
+                "| **2** | **2D-CNN qua Biến Đổi Ảnh (GAF / Wavelet)** | Ảnh 2D từ Gramian Angular Field (GAF) hoặc Scalogram Wavelet CWT | • Bảo toàn tương quan pha và năng lượng đa đường.<br>• Sử dụng backbone chuẩn (ResNet18, MobileNet), độ chính xác rất cao (> 96–99%).<br>• *Tiêu biểu:* Các công trình IEEE Sensors J. & MDPI Sensors 2023–2025. |\n"
+                "| **3** | **TCN / Bi-LSTM (Mạng Chuỗi Thời Gian)** | Chuỗi thời gian CIR liên tục theo thời gian trễ (Time-delay spread) | • Bắt trọn tính phụ thuộc trễ của các tia phản xạ đa đường.<br>• Phù hợp với môi trường công nghiệp dội sóng phức tạp.<br>• *Tiêu biểu:* Temporal Convolutional Network kết hợp SimCLR (2025). |\n"
+                "| **4** | **Meta-Learning (HSML / MAML)** | Tập nhiệm vụ đa kịch bản (Tasks: Support set + Query set) | • Học cách học (Learn to Learn), giải quyết bài toán chuyển miền (Cross-domain).<br>• Thích nghi few-shot (chỉ cần vài mẫu ở phòng mới), tập trung vào mẫu khó (Hard samples).<br>• *Tiêu biểu:* Hard Sample Meta-Learning (IEEE IoT-J 2025, 88.24%). |\n"
+                "| **5** | **GNN & Attention (Đồ Thị & Chú Ý)** | Đồ thị mạng liên kết đa Anchor – đa Tag (Spatial-Temporal Graph) | • Học tương quan hình học không gian giữa các Anchor và chuyển động Tag.<br>• *Tiêu biểu:* Spatial-Temporal Attention Graph Neural Network (2024). |\n\n"
+                "---\n\n"
+                "### 🎯 Phân Tích Lựa Chọn Kỹ Sư Thực Nghiệm:\n"
+                "1. **Triển khai thực tế trên Robot / Xe tự hành nhúng (Edge Computing):**\n"
+                "   Ưu tiên tuyệt đối **1D-CNN** vì không tốn chi phí biến đổi ảnh trung gian, thực thi thuần NumPy ma trận với tần số lấy mẫu 30–50 Hz trên CPU Raspberry Pi 4.\n"
+                "2. **Nghiên cứu học thuật / Server xử lý tập trung độ chính xác tối đa:**\n"
+                "   Ưu tiên **GAF-ResNet18** (độ chính xác > 97%) hoặc **Hard Sample Meta-Learning** khi môi trường đo đạc thay đổi liên tục giữa các phòng khác nhau."
+            )
+            def arch_stream():
+                for word in arch_text.split(" "):
+                    yield word + " "
+            self.history.append({"role": "assistant", "content": arch_text})
+            return arch_stream(), []
+
+        # 0.4. Câu hỏi giải thích phương pháp Hard Sample Meta-Learning (HSML)
+        if self.is_hsml_query(question):
+            hsml_text = (
+                "## 🔬 Bản Chất Kỹ Thuật: Hard Sample Meta-Learning (HSML) Cho Phân Loại CIR UWB\n\n"
+                "*Cơ sở khoa học:* Công trình công bố trên **IEEE Internet of Things Journal (Vol. 12, No. 10, May 2025)**: *\"Hard Sample Meta-Learning for CIR NLOS Identification in UWB Positioning\"*.\n\n"
+                "### 1. Vấn Đề Thực Tế Cần Giải Quyết:\n"
+                "Các mô hình học sâu truyền thống thường huấn luyện trên dữ liệu tĩnh của một phòng (Source domain). Khi chuyển sang phòng mới (Target domain), hiệu năng bị sụt giảm nghiêm trọng. Đặc biệt, các **mẫu khó (Hard Samples)** — tức các tín hiệu CIR nằm ở ranh giới mập mờ giữa LOS và NLOS (như bị chắn bởi mép bàn, vật cản mỏng) — thường bị mô hình bỏ qua do thuật toán MAML thông thường chọn mẫu ngẫu nhiên và bị chi phối bởi các mẫu dễ.\n\n"
+                "### 2. Kiến Trúc Hai Vòng Lặp (Two-Loop Meta-Learning Architecture):\n"
+                "Hệ thống phân chia tập dữ liệu thành các Task $M_i = \\{D_i^{(sup)}, D_i^{(que)}\\}$ đại diện cho các kịch bản đo khác nhau:\n"
+                "1. **Vòng lặp trong (Inner Loop):** Thích ứng riêng cho từng kịch bản $M_i$. Cập nhật tham số cục bộ $\\theta'_i$ trên tập hỗ trợ $D_i^{(sup)}$ bằng 1 bước đạo hàm:\n"
+                "   $$\\theta'_i = \\theta_{out} - \\alpha \\nabla_\\theta L_{M_i}(f_\\theta; D_i^{(sup)})$$\n"
+                "2. **Vòng lặp ngoài (Outer Loop):** Tìm bộ siêu tham số khởi tạo $\\theta_{out}$ có khả năng tổng quát hóa liên kịch bản (Cross-task generalization) trên tập truy vấn $D_i^{(que)}$:\n"
+                "   $$\\theta_{out} \\leftarrow \\theta_{out} - \\beta \\nabla_{\\theta_{out}} \\sum_{M_i} L_{M_i}(f_{\\theta'_i}; D_i^{(que)})$$\n\n"
+                "### 3. Cơ Chế Khai Phá Mẫu Khó (Hard Sample Mining) & Hàm Mất Mát Residual-Corrected Focal Loss:\n"
+                "• **Xác định mẫu khó:** Sau mỗi bước dự đoán, phần dư ước lượng được tính: $\\Delta y_v = |y_v - \\hat{y}_v|$. Các mẫu có phần dư lớn vượt ngưỡng $\\zeta$ được đưa vào tập mẫu khó $A$.\n"
+                "• **Hàm mất mát hiệu chỉnh (Residual-Corrected Focal Loss):**\n"
+                "  $$L^*(f_{\\theta_{out}}, \\{u_v, y_v\\}) = \\begin{cases} \\text{FocalLoss}_v, & \\text{nếu } \\Delta y_v \\ge \\zeta \\text{ (Mẫu khó)} \\\\ \\text{FocalLoss}_v \\times \\tau, & \\text{nếu } \\Delta y_v < \\zeta \\text{ (Mẫu dễ, } 0 < \\tau < 1 \\text{)} \\end{cases}$$\n"
+                "  Cơ chế này chủ động phạt nặng các mẫu dự đoán sai lệch lớn, buộc mạng phải tập trung học các đặc trưng tinh vi ở vùng ranh giới LOS/NLOS.\n\n"
+                "### 4. Kiểm Thử Thích Nghi Tinh Gọn (Fine-Grained Meta-Testing):\n"
+                "Khi đưa vào môi trường/phòng hoàn toàn mới, mạng chỉ cần một lượng rất nhỏ mẫu nhãn (Few-shot) để fine-tune. Thuật toán theo dõi độ suy giảm phần dư qua các bước lặp: nếu phần dư không giảm, mẫu đó được xác định là mẫu dị biệt/nhiễu (Anomalous outlier) và bị loại bỏ, giúp độ chính xác đạt **88.24%** vượt trội trong môi trường thực tế."
+            )
+            def hsml_stream():
+                for word in hsml_text.split(" "):
+                    yield word + " "
+            self.history.append({"role": "assistant", "content": hsml_text})
+            return hsml_stream(), []
+
         # 1. Câu hỏi tra cứu danh sách tạp chí / kỷ yếu hội nghị
         if self.is_journal_list_query(question):
             journals_context = (
@@ -370,12 +442,12 @@ class UWBAgent:
                 f"YÊU CẦU CỦA NGƯỜI DÙNG: \"{question}\"\n\n"
                 f"HƯỚNG DẪN TRẢ LỜI:\n"
                 f"1. Liệt kê danh sách các tạp chí và hội nghị khoa học uy tín có trong kho tri thức của phòng lab.\n"
-                f"2. BẮT BUỘC kẻ Bảng Markdown chỉn chu (Tạp chí / Hội nghị | Nhà xuất bản | Lĩnh vực trọng tâm trong repo | Bài báo tiêu biểu trong repo).\n"
+                f"2. BẮT BUỘC kẻ Bảng Markdown chỉn chu, gọn gàng (Tạp chí / Hội nghị | Nhà xuất bản | Lĩnh vực trọng tâm trong repo | Bài báo tiêu biểu trong repo).\n"
                 f"3. Khẳng định kho tri thức của lab sở hữu đầy đủ 48 bài báo từ các nguồn tạp chí trên."
             )
             augmented_messages = self.history[-3:-1] + [{"role": "user", "content": prompt_content}]
 
-        # 2. Câu hỏi tìm kiếm bài báo / nghiên cứu / phân loại AI-ML / EKF
+        # 2. Câu hỏi tìm kiếm bài báo / tra cứu danh mục paper
         elif self.is_explicit_paper_query(question):
             matched_papers = self.find_relevant_repo_papers(question, top_k=6)
             if matched_papers:
@@ -395,10 +467,11 @@ class UWBAgent:
                     f"{papers_context}\n"
                     f"CÂU HỎI CỦA NGƯỜI DÙNG: \"{question}\"\n\n"
                     f"HƯỚNG DẪN TRẢ LỜI (BẮT BUỘC TUÂN THỦ):\n"
-                    f"1. Trả lời trực tiếp câu hỏi dựa trên các bài báo cụ thể trong danh sách trên.\n"
-                    f"2. BẮT BUỘC kẻ Bảng Markdown so sánh các bài báo (STT | Tên bài báo | Năm | Phương pháp AI/ML hoặc Thuật toán | Hiệu năng / Độ chính xác | Tệp PDF).\n"
-                    f"3. Nêu rõ ưu nhược điểm kỹ thuật và số liệu định lượng (RMSE, %, cm) của từng bài.\n"
-                    f"4. TUYỆT ĐỐI KHÔNG bảo người dùng tự đi tìm trên IEEE hay Google Scholar!"
+                    f"1. Trả lời trực tiếp và ĐÚNG TRỌNG TÂM câu hỏi của người dùng.\n"
+                    f"2. KẺ BẢNG GỌN GÀNG ĐẸP MẮT (Tối đa 4 cột để không bị vỡ khung màn hình: STT | Mô hình / Thuật toán | Năm | Sai số / Hiệu năng đạt được). TUYỆT ĐỐI KHÔNG đưa tên file PDF dài hay đoạn văn dài vào các ô bảng.\n"
+                    f"3. Liệt kê tên bài báo và tệp PDF ở danh sách gạch đầu dòng bên dưới bảng.\n"
+                    f"4. Nêu rõ ưu nhược điểm kỹ thuật và số liệu định lượng (RMSE, %, cm) của từng bài.\n"
+                    f"5. TUYỆT ĐỐI KHÔNG bảo người dùng tự đi tìm trên IEEE hay Google Scholar!"
                 )
                 augmented_messages = self.history[-3:-1] + [{"role": "user", "content": prompt_content}]
             else:
@@ -418,13 +491,26 @@ class UWBAgent:
             prompt_content = (
                 f"{papers_context}\n"
                 f"CÂU HỎI TIẾP NỐI: \"{question}\"\n\n"
-                f"Hãy trả lời trực tiếp cho các bài báo đang thảo luận ở trên, phân tích chi tiết và duy trì mạch ngữ cảnh."
+                f"Hãy trả lời trực tiếp và ĐÚNG TRỌNG TÂM cho câu hỏi tiếp nối ở trên. Phân tích chi tiết bản chất kỹ thuật, công thức, cơ chế thuật toán và duy trì mạch ngữ cảnh. Nếu kẻ bảng, bảng phải GỌN GÀNG (tối đa 4 cột, không làm vỡ khung terminal)."
             )
             augmented_messages = self.history[-3:-1] + [{"role": "user", "content": prompt_content}]
 
-        # 4. Câu chào hỏi, cảm thán, xã giao
+        # 4. Câu chào hỏi, cảm thán, xã giao, khen ngợi tốc độ
         elif self.is_casual_intent(question):
             self.current_context_papers = []
+            q_norm = remove_accents(question.lower().strip())
+            if any(k in q_norm for k in ["nhanh the", "nhanh vay", "tra loi nhanh", "nhanh qua", "sao nhanh the", "qua nhanh"]):
+                speed_reply = (
+                    "Cảm ơn bạn! Hệ thống IPS-Agent được tối ưu hóa toàn diện với cơ chế phản hồi theo thời gian thực (Realtime Token Streaming) "
+                    "và cấu hình phần cứng tối ưu, giúp câu trả lời xuất hiện ngay tức thì mà không phải gom chờ toàn bộ văn bản. "
+                    "Tôi luôn sẵn sàng cùng bạn phân tích sâu mọi vấn đề kỹ thuật tiếp theo!"
+                )
+                def speed_stream():
+                    for word in speed_reply.split(" "):
+                        yield word + " "
+                self.history.append({"role": "assistant", "content": speed_reply})
+                return speed_stream(), []
+
             casual_prompt = (
                 f"Người dùng vừa gửi câu chào hoặc biểu cảm: \"{question}\".\n"
                 f"Hãy phản hồi bằng tiếng Việt tự nhiên, thân thiện, lịch sự và tự tin với tư cách Kỹ sư Nghiên cứu Cấp cao IPS UWB. "

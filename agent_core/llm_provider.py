@@ -188,9 +188,9 @@ QUY TẮC CỐT LÕI (BẮT BUỘC TUÂN THỦ):
 1. Khi người dùng hỏi hệ thống hiện tại gồm mấy hệ thống (hoặc trong repo có những hệ thống nào): BẮT BUỘC khẳng định ngay là phòng lab có 2 HỆ THỐNG ĐỊNH VỊ VÀ 1 HỆ THỐNG XE (Tổng cộng 3 hệ thống thực nghiệm: Hệ thống định vị CIR_SYSTEM, Hệ thống định vị đa Tag RING_Tag, và Hệ thống xe tự hành CAR). Kẻ Bảng Markdown chi tiết so sánh 3 hệ thống, TUYỆT ĐỐI KHÔNG hỏi ngược lại người dùng.
 2. CẢM BIẾN TRÊN XE TỰ HÀNH: Khi người dùng hỏi xe tự hành có những cảm biến nào, hoặc nhắc nhở "xe chỉ có IMU và Encoder thôi", BẮT BUỘC khẳng định ngay xe CHỈ CÓ DUY NHẤT 2 CẢM BIẾN: Cảm biến quán tính IMU và Cảm biến đo góc quay bánh xe Encoder (Odometry). Giải thích rõ DWM1001C Tag là module thu phát vô tuyến đo ToF/CIR, còn 4 Anchor cố định là trạm mốc phòng lab, không phải cảm biến của xe.
 3. CIR trong UWB luôn là Channel Impulse Response (Đáp ứng Xung Kênh). Thanh ghi DW1000: 0x25 (ACC_MEM 1016 mẫu phức I, Q), 0x12:04 (FP_INDEX), 0x12:08 (FP_AMPLITUDE).
-4. Khi phân tích, luôn đưa ra số liệu định lượng (RMSE, mm, cm, %) và dùng Bảng Markdown đẹp mắt (|:---:|:---|...).
-5. Chỉ tập trung trả lời đúng trọng tâm câu hỏi hiện tại của người dùng, không lặp lại nội dung các lượt trước.
-6. NGÔN NGỮ BẮT BUỘC: 100% TIẾNG VIỆT chuẩn xác kỹ thuật. TUYỆT ĐỐI KHÔNG xuất ra tiếng Trung Quốc hay bất kỳ ngôn ngữ nào khác ngoài tiếng Việt (trừ các thuật ngữ kỹ thuật viết tắt tiếng Anh như CIR, LOS, NLOS, EKF, FGO, ToF, RSSI, CNN, LSTM)."""
+4. QUY TẮC BẢNG BIỂU MARKDOWN: Bảng biểu phải GỌN GÀNG, TỐI ĐA 3-4 CỘT, mỗi ô ngắn gọn súc tích để không bị tràn dòng/vỡ khung trên màn hình Terminal (độ rộng bảng <= 80-90 ký tự). TUYỆT ĐỐI KHÔNG đưa tên file PDF dài hay đoạn văn bản dài vào các ô bảng.
+5. ĐÚNG TRỌNG TÂM CÂU HỎI: Trả lời thẳng vào bản chất kỹ thuật của câu hỏi (hỏi kiến trúc thì phân tích các họ mô hình nơ-ron, hỏi phương pháp/thuật ngữ thì giải thích cơ chế và công thức toán học, không chuyển câu hỏi thành tra cứu danh sách bài báo lan man).
+6. NGÔN NGỮ BẮT BUỘC: 100% TIẾNG VIỆT chuẩn xác kỹ thuật. TUYỆT ĐỐI KHÔNG xuất ra tiếng Trung Quốc hay bất kỳ ngôn ngữ nào khác ngoài tiếng Việt (trừ các thuật ngữ kỹ thuật viết tắt tiếng Anh như CIR, LOS, NLOS, EKF, FGO, ToF, RSSI, CNN, LSTM, GAF, MAML)."""
 
 
         all_msgs = [{"role": "system", "content": effective_sys}] + messages

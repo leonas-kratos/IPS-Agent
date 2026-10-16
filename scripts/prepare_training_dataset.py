@@ -529,6 +529,59 @@ Hệ thống xe tự hành Robot AGV trong phòng lab **CHỈ CÓ DUY NHẤT 2 L
     examples.append({"instruction": "xe chỉ có IMU và Encoder thôi", "input": "", "output": "Chính xác! " + a_car_sensors})
     examples.append({"instruction": "trên xe robot AGV có những cảm biến gì", "input": "", "output": a_car_sensors})
 
+    # 11. Các kiến trúc mạng AI phân loại LOS/NLOS hiện nay trong UWB
+    q_class_arch = "Vậy các bài toán phân loại hiện nay thường dùng kiến trúc gì?"
+    a_class_arch = """## 🧠 Các Kiến Trúc AI/ML Phổ Biến Trong Phân Loại Kênh UWB (LOS / NLOS)
+
+Trong nghiên cứu định vị UWB hiện nay, việc phân loại kênh truyền được chia thành **5 nhóm kiến trúc chính** tùy thuộc vào cách biểu diễn đặc trưng tín hiệu đáp ứng xung kênh CIR:
+
+| STT | Họ Kiến Trúc | Định Dạng Dữ Liệu Đầu Vào | Đặc Tính Kỹ Thuật & Hiệu Năng |
+|:---:|:---|:---|:---|
+| **1** | **1D-CNN (Mạng Tích Chập 1D)** | Vector 1D CIR thô (50–100 mẫu quanh First Path) + 7 PHY metadata | • Siêu nhẹ, tham số ít (< 50k params), độ trễ cực thấp (< 1 ms).<br>• Chạy thời gian thực mượt mà trên nhúng (Raspberry Pi 4 / STM32).<br>• *Tiêu biểu:* Mô hình Tiny 1D-CNN Pure NumPy trong `System/CAR/`. |
+| **2** | **2D-CNN qua Biến Đổi Ảnh (GAF / Wavelet)** | Ảnh 2D từ Gramian Angular Field (GAF) hoặc Scalogram Wavelet CWT | • Bảo toàn tương quan pha và năng lượng đa đường.<br>• Sử dụng backbone chuẩn (ResNet18, MobileNet), độ chính xác rất cao (> 96–99%).<br>• *Tiêu biểu:* Các công trình IEEE Sensors J. & MDPI Sensors 2023–2025. |
+| **3** | **TCN / Bi-LSTM (Mạng Chuỗi Thời Gian)** | Chuỗi thời gian CIR liên tục theo thời gian trễ (Time-delay spread) | • Bắt trọn tính phụ thuộc trễ của các tia phản xạ đa đường.<br>• Phù hợp với môi trường công nghiệp dội sóng phức tạp.<br>• *Tiêu biểu:* Temporal Convolutional Network kết hợp SimCLR (2025). |
+| **4** | **Meta-Learning (HSML / MAML)** | Tập nhiệm vụ đa kịch bản (Tasks: Support set + Query set) | • Học cách học (Learn to Learn), giải quyết bài toán chuyển miền (Cross-domain).<br>• Thích nghi few-shot (chỉ cần vài mẫu ở phòng mới), tập trung vào mẫu khó (Hard samples).<br>• *Tiêu biểu:* Hard Sample Meta-Learning (IEEE IoT-J 2025, 88.24%). |
+| **5** | **GNN & Attention (Đồ Thị & Chú Ý)** | Đồ thị mạng liên kết đa Anchor – đa Tag (Spatial-Temporal Graph) | • Học tương quan hình học không gian giữa các Anchor và chuyển động Tag.<br>• *Tiêu biểu:* Spatial-Temporal Attention Graph Neural Network (2024). |
+
+---
+
+### 🎯 Phân Tích Lựa Chọn Kỹ Sư Thực Nghiệm:
+1. **Triển khai thực tế trên Robot / Xe tự hành nhúng (Edge Computing):**
+   Ưu tiên tuyệt đối **1D-CNN** vì không tốn chi phí biến đổi ảnh trung gian, thực thi thuần NumPy ma trận với tần số lấy mẫu 30–50 Hz trên CPU Raspberry Pi 4.
+2. **Nghiên cứu học thuật / Server xử lý tập trung độ chính xác tối đa:**
+   Ưu tiên **GAF-ResNet18** (độ chính xác > 97%) hoặc **Hard Sample Meta-Learning** khi môi trường đo đạc thay đổi liên tục giữa các phòng khác nhau."""
+    examples.append({"instruction": q_class_arch, "input": "", "output": a_class_arch})
+    examples.append({"instruction": "các bài toán phân loại dùng kiến trúc gì", "input": "", "output": a_class_arch})
+    examples.append({"instruction": "phân loại LOS và NLOS dùng những mô hình nào", "input": "", "output": a_class_arch})
+
+    # 12. Phương pháp Hard Sample Meta-Learning (HSML)
+    q_hsml = "Phương pháp Hard Sample Meta-Learning là gì?"
+    a_hsml = """## 🔬 Bản Chất Kỹ Thuật: Hard Sample Meta-Learning (HSML) Cho Phân Loại CIR UWB
+
+*Cơ sở khoa học:* Công trình công bố trên **IEEE Internet of Things Journal (Vol. 12, No. 10, May 2025)**: *"Hard Sample Meta-Learning for CIR NLOS Identification in UWB Positioning"*.
+
+### 1. Vấn Đề Thực Tế Cần Giải Quyết:
+Các mô hình học sâu truyền thống thường huấn luyện trên dữ liệu tĩnh của một phòng (Source domain). Khi chuyển sang phòng mới (Target domain), hiệu năng bị sụt giảm nghiêm trọng. Đặc biệt, các **mẫu khó (Hard Samples)** — tức các tín hiệu CIR nằm ở ranh giới mập mờ giữa LOS và NLOS (như bị chắn bởi mép bàn, vật cản mỏng) — thường bị mô hình bỏ qua do thuật toán MAML thông thường chọn mẫu ngẫu nhiên và bị chi phối bởi các mẫu dễ.
+
+### 2. Kiến Trúc Hai Vòng Lặp (Two-Loop Meta-Learning Architecture):
+Hệ thống phân chia tập dữ liệu thành các Task $M_i = \{D_i^{(sup)}, D_i^{(que)}\}$ đại diện cho các kịch bản đo khác nhau:
+1. **Vòng lặp trong (Inner Loop):** Thích ứng riêng cho từng kịch bản $M_i$. Cập nhật tham số cục bộ $\\theta'_i$ trên tập hỗ trợ $D_i^{(sup)}$ bằng 1 bước đạo hàm:
+   $$\\theta'_i = \\theta_{out} - \\alpha \\nabla_\\theta L_{M_i}(f_\\theta; D_i^{(sup)})$$
+2. **Vòng lặp ngoài (Outer Loop):** Tìm bộ siêu tham số khởi tạo $\\theta_{out}$ có khả năng tổng quát hóa liên kịch bản (Cross-task generalization) trên tập truy vấn $D_i^{(que)}$:
+   $$\\theta_{out} \\leftarrow \\theta_{out} - \\beta \\nabla_{\\theta_{out}} \\sum_{M_i} L_{M_i}(f_{\\theta'_i}; D_i^{(que)})$$
+
+### 3. Cơ Chế Khai Phá Mẫu Khó (Hard Sample Mining) & Hàm Mất Mát Residual-Corrected Focal Loss:
+• **Xác định mẫu khó:** Sau mỗi bước dự đoán, phần dư ước lượng được tính: $\\Delta y_v = |y_v - \\hat{y}_v|$. Các mẫu có phần dư lớn vượt ngưỡng $\\zeta$ được đưa vào tập mẫu khó $A$.
+• **Hàm mất mát hiệu chỉnh (Residual-Corrected Focal Loss):**
+  $$L^*(f_{\\theta_{out}}, \\{u_v, y_v\\}) = \\begin{cases} \\text{FocalLoss}_v, & \\text{nếu } \\Delta y_v \\ge \\zeta \\text{ (Mẫu khó)} \\\\ \\text{FocalLoss}_v \\times \\tau, & \\text{nếu } \\Delta y_v < \\zeta \\text{ (Mẫu dễ, } 0 < \\tau < 1 \\text{)} \\end{cases}$$
+  Cơ chế này chủ động phạt nặng các mẫu dự đoán sai lệch lớn, buộc mạng phải tập trung học các đặc trưng tinh vi ở vùng ranh giới LOS/NLOS.
+
+### 4. Kiểm Thử Thích Nghi Tinh Gọn (Fine-Grained Meta-Testing):
+Khi đưa vào môi trường/phòng hoàn toàn mới, mạng chỉ cần một lượng rất nhỏ mẫu nhãn (Few-shot) để fine-tune. Thuật toán theo dõi độ suy giảm phần dư qua các bước lặp: nếu phần dư không giảm, mẫu đó được xác định là mẫu dị biệt/nhiễu (Anomalous outlier) và bị loại bỏ, giúp độ chính xác đạt **88.24%** vượt trội trong môi trường thực tế."""
+    examples.append({"instruction": q_hsml, "input": "", "output": a_hsml})
+    examples.append({"instruction": "phương pháp hard sample meta-learning là gì", "input": "", "output": a_hsml})
+    examples.append({"instruction": "hard sample meta-learning là gì", "input": "", "output": a_hsml})
+
     return examples
 
 
